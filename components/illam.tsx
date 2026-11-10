@@ -174,7 +174,6 @@ export default function Illam() {
       setSignup(auth === "signup");
       setAuthOpen(true);
     }
-    setReady(true);
     api("session")
       .then(async (r) => {
         setConfigured(r.configured);
@@ -182,9 +181,13 @@ export default function Illam() {
           setUser(r.user);
           setAuthOpen(false);
           await loadCloud();
+        } else if (!auth && new URLSearchParams(window.location.search).get("demo") !== "1") {
+          window.location.replace("/");
+          return;
         }
+        setReady(true);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => { setError(e.message); setReady(true); });
   }, []);
   useEffect(() => {
     if (!notice) return;
@@ -1302,16 +1305,10 @@ export default function Illam() {
                       onClick={() =>
                         user
                           ? run(async () => {
-                              await authClient.signOut();
-                              setUser(null);
-                              setActive(null);
-                              setMode("demo");
-                              setProject(
-                                JSON.parse(
-                                  localStorage.getItem(STORAGE) || "null",
-                                ) || demoProject(),
-                              );
-                              navigate("overview");
+                              const result = await authClient.signOut();
+                              if (result.error)
+                                throw new Error(result.error.message || "Could not sign out. Please try again.");
+                              window.location.replace("/");
                             })
                           : setAuthOpen(true)
                       }

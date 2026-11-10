@@ -32,7 +32,7 @@ export default function Page() {
             Keep your whole build in one simple place.
           </p>
           <Link className="button primary" href="/app?auth=signup">
-            Start your home <ArrowRight size={19} />
+            Sign up for free <ArrowRight size={19} />
           </Link>
           <small>Free to use right now. No card needed.</small>
           <Link className="text-link" href="/app?demo=1">
