@@ -80,3 +80,13 @@ Before commercial launch: run full multi-user integration tests, use a dedicated
 ## Verification
 
 Financial and server-input tests cover transfers, account balances, funding windows, approval settlement, duplicates, unsafe URLs and invalid inventory. Production build and TypeScript checks pass. Browser smoke tests cover the dashboard, ledger entry creation and browser-local persistence. Cloud schema is installed; unauthenticated private API calls return 401. Real email delivery, authenticated collaborator flows and file uploads need user-account acceptance testing.
+
+## Mobile app experience (November 2026)
+
+The interface is now phone-first, with persistent Home, Money, Site and More tabs, a central quick-add sheet, an expense form with optional details, expandable ledger entries, and larger controls. Browser Back/Forward follows tab navigation. Existing project data is unchanged.
+
+Install from **More → Install**. On iPhone, open in Safari and use Share → Add to Home Screen. On Android, use Chrome’s Install app action. The manifest, PNG app icons, Apple home-screen metadata and safe-area spacing support standalone launch. This is an installable web app, not a separately published App Store or Play Store package. Device installation itself still needs physical-device acceptance testing.
+
+The service worker caches only icons and a generic offline page. It does not cache financial records, auth responses, private attachments or API requests. Real projects require internet. If connectivity drops while the app is open, it explains that saving needs a connection. No offline queue or background sync is claimed.
+
+Mobile QA: 390px browser layout, quick expense creation, ledger, bottom navigation and installation guidance. Existing financial tests remain applicable.

@@ -22,6 +22,11 @@ import {
   Download,
   X,
   Menu,
+  ArrowLeft,
+  ChevronRight,
+  HardHat,
+  MoreHorizontal,
+  Smartphone,
   House,
   Leaf,
   LogOut,
@@ -49,7 +54,10 @@ import {
 } from "@/lib/model";
 import { fields, labels, type Field } from "@/lib/fields";
 import { authClient } from "@/lib/auth/client";
-type View = "overview" | Section | "settings";
+import AppInstall from "@/components/app-install";
+import QuickMoneyForm from "@/components/quick-money-form";
+import QuickSiteForm from "@/components/quick-site-form";
+type View = "overview" | Section | "settings" | "more";
 type CloudProject = {
   id: string;
   name: string;
@@ -69,30 +77,19 @@ const icons = {
   documents: FileText,
   cameras: Video,
   settings: Settings,
+  more: MoreHorizontal,
 };
-const nav: View[] = [
-  "overview",
-  "transactions",
-  "payments",
-  "stages",
-  "materials",
-  "updates",
-  "decisions",
-  "people",
-  "documents",
-  "cameras",
-];
-const descriptions: Record<Section, string> = {
-  transactions: "Every rupee, with a little more clarity.",
-  payments: "Review the work. Approve the request. Record the payment.",
-  stages: "From the first drawing to the day you move in.",
-  materials: "Know what arrived, what was used, and what is running low.",
-  people: "The people bringing your home to life.",
-  updates: "A small daily update. A clearer picture of your build.",
-  decisions: "Keep the work moving with timely decisions.",
-  documents: "The right drawing, bill, or contract, always within reach.",
-  cameras: "Your secure camera portals, together in one place.",
-};
+function dateLabel(value: string) {
+  if (!value) return "No date";
+  if (value === day()) return "Today";
+  const d = new Date(value + "T12:00:00");
+  return Number.isNaN(d.getTime())
+    ? value
+    : new Intl.DateTimeFormat("en-IN", {
+        day: "numeric",
+        month: "short",
+      }).format(d);
+}
 const STORAGE = "illam-demo-v1";
 async function api(path: string, method = "GET", body?: unknown) {
   const res = await fetch("/api/" + path, {
@@ -117,8 +114,8 @@ function Badge({
 function Empty({ title, onAdd }: { title: string; onAdd?: () => void }) {
   return (
     <div className="empty">
-      <Leaf size={30} />
-      <h3>A fresh start</h3>
+      <Plus size={28} />
+      <h3>Nothing here yet</h3>
       <p>{title}</p>
       {onAdd && (
         <button className="button primary" onClick={onAdd}>
@@ -128,62 +125,14 @@ function Empty({ title, onAdd }: { title: string; onAdd?: () => void }) {
     </div>
   );
 }
-function HouseDrawing() {
-  return (
-    <svg
-      className="house-drawing"
-      viewBox="0 0 470 250"
-      fill="none"
-      aria-label="Architectural illustration of a courtyard house"
-      role="img"
-    >
-      <path d="M28 203 235 250 452 178 246 136Z" fill="#244e41" />
-      <path d="m77 163 111 27 173-57-111-28Z" fill="#a9b59c" />
-      <path d="m77 112 111 28v50L77 163Z" fill="#d9d7b5" />
-      <path d="m188 140 173-57v50l-173 57Z" fill="#eee7c9" />
-      <path d="m65 111 123 31 188-62-125-30Z" fill="#faf0d0" />
-      <path d="m65 111 123 31v8L65 119Z" fill="#bbb99a" />
-      <path d="m188 142 188-62v8l-188 62Z" fill="#d1cbac" />
-      <path d="m222 77 62 15 62-21-62-15Z" fill="#587667" />
-      <path d="m222 77 62 15v8l-62-15Z" fill="#b9b89a" />
-      <path d="m284 92 62-21v8l-62 21Z" fill="#d0c8a8" />
-      <path
-        d="m209 148 40-13v31l-40 13ZM261 131l37-12v31l-37 12ZM309 115l31-10v31l-31 10Z"
-        fill="#365e52"
-      />
-      <path d="m96 130 26 7v27l-26-7ZM139 141l26 7v27l-26-7Z" fill="#567b69" />
-      <path
-        d="m228 141 0 31m52-46v30m44-20v-26"
-        stroke="#d8d6b9"
-        strokeWidth="2"
-      />
-      <path d="m205 190 78 18 72-24-77-19Z" fill="#698775" />
-      <path d="m175 199 78 18 30-9-78-18Z" fill="#849782" />
-      <path d="m145 208 78 18 30-9-78-18Z" fill="#9aa38b" />
-      <path
-        d="M389 154v-55M53 181v-45M406 195v-32"
-        stroke="#b9b997"
-        strokeWidth="4"
-      />
-      <ellipse cx="389" cy="92" rx="20" ry="32" fill="#72906a" />
-      <ellipse cx="53" cy="129" rx="16" ry="25" fill="#859c73" />
-      <ellipse cx="406" cy="157" rx="14" ry="23" fill="#637f60" />
-      <path
-        d="m15 218 107 25M320 228l132-42M108 63l65-22"
-        stroke="#759784"
-        strokeDasharray="4 7"
-        opacity=".6"
-      />
-    </svg>
-  );
-}
 export default function Illam() {
   const [project, setProject] = useState<Project>(emptyProject());
   const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<"demo" | "cloud">("demo");
   const [view, setView] = useState<View>("overview");
   const [search, setSearch] = useState("");
-  const [mobile, setMobile] = useState(false);
+  const [quickAdd, setQuickAdd] = useState(false);
+  const [online, setOnline] = useState(true);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -240,10 +189,45 @@ export default function Illam() {
         setModal(null);
         setAuthOpen(false);
         setDeleteRow(null);
+        setQuickAdd(false);
       }
     };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
+  }, []);
+  useEffect(() => {
+    const views: View[] = [
+      "overview",
+      "transactions",
+      "payments",
+      "stages",
+      "materials",
+      "people",
+      "updates",
+      "decisions",
+      "documents",
+      "cameras",
+      "settings",
+      "more",
+    ];
+    const onHash = () => {
+      const next = location.hash.slice(1) as View;
+      if (views.includes(next)) {
+        setView(next);
+        setSearch("");
+      } else setView("overview");
+    };
+    const connection = () => setOnline(navigator.onLine);
+    onHash();
+    connection();
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("online", connection);
+    window.addEventListener("offline", connection);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("online", connection);
+      window.removeEventListener("offline", connection);
+    };
   }, []);
   async function loadCloud(id?: string) {
     const result = await api("projects");
@@ -261,6 +245,10 @@ export default function Illam() {
   }
   async function save(next: Project) {
     if (!editable) throw new Error("This project is read-only.");
+    if (mode === "cloud" && !navigator.onLine)
+      throw new Error(
+        "You are offline. Keep this form open and reconnect to save.",
+      );
     if (mode === "demo") {
       localStorage.setItem(STORAGE, JSON.stringify(next));
     } else {
@@ -296,9 +284,12 @@ export default function Illam() {
   function navigate(next: View) {
     setView(next);
     setSearch("");
-    setMobile(false);
+    window.location.hash = next;
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
   function add(section: Section, defaults?: Partial<Row>) {
+    setError("");
+    setQuickAdd(false);
     setModal({ section, defaults });
   }
   async function rowSubmit(event: FormEvent<HTMLFormElement>) {
@@ -443,10 +434,12 @@ export default function Illam() {
   }
   const title =
     view === "overview"
-      ? "Home overview"
+      ? "Home"
       : view === "settings"
         ? "Project settings"
-        : labels[view];
+        : view === "more"
+          ? "More"
+          : labels[view];
   const pending =
     project.payments.filter((r) => r.status === "Pending").length +
     project.decisions.filter((r) => r.status === "Pending").length;
@@ -550,57 +543,35 @@ export default function Illam() {
       );
     if (section === "transactions")
       return (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Entry / description</th>
-                <th>Category</th>
-                <th>Date</th>
-                <th>Account</th>
-                <th className="align-right">Amount</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <div className="entry-title">
-                      <span
-                        className={
-                          "entry-icon " +
-                          (r.kind === "Contribution" ? "green" : "")
-                        }
-                      >
-                        {r.kind === "Contribution" ? (
-                          <ArrowDownLeft size={17} />
-                        ) : r.kind === "Transfer" ? (
-                          <ArrowLeftRight size={17} />
-                        ) : (
-                          <ArrowUpRight size={17} />
-                        )}
-                      </span>
-                      <div>
-                        <strong>{r.party}</strong>
-                        <small>{r.note || r.kind}</small>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <Badge>{r.category}</Badge>
-                  </td>
-                  <td>{r.date}</td>
-                  <td>
-                    {r.kind === "Contribution"
-                      ? r.to
-                      : r.kind === "Transfer"
-                        ? `${r.from} → ${r.to}`
-                        : r.from}
-                  </td>
-                  <td
+        <div className="ledger-list">
+          {[...rows]
+            .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+            .map((r) => (
+              <details className="ledger-entry" key={r.id}>
+                <summary>
+                  <span
                     className={
-                      "align-right amount " +
+                      "entry-icon " +
+                      (r.kind === "Contribution" ? "incoming" : "")
+                    }
+                  >
+                    {r.kind === "Contribution" ? (
+                      <ArrowDownLeft size={20} />
+                    ) : r.kind === "Transfer" ? (
+                      <ArrowLeftRight size={20} />
+                    ) : (
+                      <ArrowUpRight size={20} />
+                    )}
+                  </span>
+                  <span className="grow">
+                    <strong>{r.party}</strong>
+                    <small>
+                      {r.category} · {dateLabel(String(r.date))}
+                    </small>
+                  </span>
+                  <span
+                    className={
+                      "entry-amount " +
                       (r.kind === "Contribution" ? "positive" : "")
                     }
                   >
@@ -610,13 +581,25 @@ export default function Illam() {
                         ? "−"
                         : ""}
                     {fmt(Number(r.amount))}
-                    <small>{r.kind}</small>
-                  </td>
-                  <td>{recordActions(section, r)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <small>
+                      {r.kind === "Contribution" ? "Money added" : r.kind}
+                    </small>
+                  </span>
+                  <ChevronDown size={15} />
+                </summary>
+                <div className="entry-details">
+                  <p>{r.note || "No note added"}</p>
+                  <small>
+                    {r.kind === "Contribution"
+                      ? "To " + r.to
+                      : r.kind === "Transfer"
+                        ? r.from + " → " + r.to
+                        : "Paid from " + r.from}
+                  </small>
+                  {recordActions(section, r)}
+                </div>
+              </details>
+            ))}
         </div>
       );
     if (section === "stages")
@@ -821,158 +804,76 @@ export default function Illam() {
         <span>Opening your home…</span>
       </div>
     );
+  const moneyViews: View[] = ["transactions", "payments"];
+  const siteViews: View[] = ["updates", "stages", "materials"];
+  const group = moneyViews.includes(view)
+    ? "money"
+    : siteViews.includes(view)
+      ? "site"
+      : view === "overview"
+        ? "home"
+        : "more";
+  const lowStock = project.materials.filter(
+    (r) => Number(r.received) - Number(r.used) <= Number(r.reorder),
+  );
+  const actionTitle: Record<Section, string> = {
+    transactions: "Add expense",
+    payments: "Request payment",
+    stages: "Add stage",
+    materials: "Add material",
+    people: "Add person",
+    updates: "Post update",
+    decisions: "Add decision",
+    documents: "Add document",
+    cameras: "Add camera",
+  };
   return (
     <div className="app-shell">
-      <aside className={"sidebar " + (mobile ? "open" : "")}>
-        <a
-          className="brand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate("overview");
-          }}
-        >
-          <span className="brand-icon">
-            <House size={23} />
-          </span>
-          ILLAM<span className="brand-dot">.</span>
-        </a>
-        <p className="brand-caption">A LITTLE CLOSER TO HOME</p>
-        <div className="project-switch">
-          <span className="project-mark">
-            <House size={18} />
-          </span>
-          <div>
-            <strong>{project.name}</strong>
-            <small>
-              {mode === "demo"
-                ? "Sample home"
-                : project.location || "Your home project"}
-            </small>
-          </div>
-          <ChevronDown size={15} />
-        </div>
-        <div className="nav-label">YOUR HOME</div>
-        <nav>
-          {nav.map((item) => {
-            const Icon = icons[item];
-            return (
-              <button
-                className={"nav-item " + (view === item ? "active" : "")}
-                key={item}
-                onClick={() => navigate(item)}
-              >
-                <Icon size={18} />
-                <span>
-                  {item === "overview" ? "Overview" : labels[item as Section]}
-                </span>
-                {item === "decisions" && pending > 0 && (
-                  <span className="nav-count">{pending}</span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="little-note">
-            <Leaf size={19} />
-            <strong>Good homes take care.</strong>
-            <p>
-              One decision. One day.
-              <br />
-              One step closer.
-            </p>
-          </div>
-          <button
-            className={"nav-item " + (view === "settings" ? "active" : "")}
-            onClick={() => navigate("settings")}
-          >
-            <Settings size={18} /> Project settings
-          </button>
-          <button
-            className="profile"
-            onClick={() =>
-              user
-                ? run(async () => {
-                    await authClient.signOut();
-                    setUser(null);
-                    setActive(null);
-                    setMode("demo");
-                    setProject(
-                      JSON.parse(localStorage.getItem(STORAGE) || "null") ||
-                        demoProject(),
-                    );
-                  })
-                : setAuthOpen(true)
-            }
-          >
-            <span className="avatar small-avatar">
-              {user ? user.email[0].toUpperCase() : "M"}
-            </span>
-            <span>
-              <strong>
-                {user ? user.email.split("@")[0] : "Your home, your space"}
-              </strong>
-              <small>{user ? "Sign out" : "Sign in to get started"}</small>
-            </span>
-            {user ? <LogOut size={15} /> : <ArrowRight size={15} />}
-          </button>
-        </div>
-      </aside>
-      {mobile && (
+      <header className="app-header">
         <button
-          className="sidebar-overlay"
-          aria-label="Close navigation"
-          onClick={() => setMobile(false)}
-        />
-      )}
-      <main>
-        <header className="topbar">
-          <div className="breadcrumb">
-            <button
-              className="icon-button mobile-menu"
-              aria-label="Open navigation"
-              onClick={() => setMobile(true)}
-            >
-              <Menu size={20} />
-            </button>
-            <House size={15} />
-            <span>Your home</span>
-            <span>/</span>
-            <strong>{title}</strong>
-          </div>
-          <div className="topbar-right">
-            <span className="connection-dot" />
-            <span>
-              {mode === "demo" ? "Demo workspace" : "Private workspace"}
-            </span>
-            <button
-              className="icon-button"
-              title="Refresh project"
-              onClick={() =>
-                mode === "cloud"
-                  ? run(() => loadCloud(active?.id))
-                  : setNotice("Demo entries are saved in this browser.")
-              }
-            >
-              <RefreshCw size={16} />
-            </button>
-          </div>
-        </header>
+          className="wordmark"
+          onClick={() => navigate("overview")}
+          aria-label="ILLAM home"
+        >
+          illam<span>•</span>
+        </button>
+        <button className="home-switch" onClick={() => navigate("settings")}>
+          <span>{project.name}</span>
+          <ChevronDown size={16} />
+        </button>
+        <button
+          className="icon-button"
+          aria-label="Refresh project"
+          disabled={busy}
+          onClick={() =>
+            mode === "cloud"
+              ? run(() => loadCloud(active?.id))
+              : setNotice("Demo entries are saved on this phone.")
+          }
+        >
+          <RefreshCw size={19} />
+        </button>
+      </header>
+      <main id="main-content">
         <div className="content">
           {mode === "demo" && (
             <div className="demo-banner">
-              <span>
-                <strong>Explore ILLAM.</strong> Sample data, saved only in this
-                browser.
-              </span>
+              <span>Trying a sample home</span>
               <button
                 onClick={() =>
                   user ? run(() => loadCloud()) : setAuthOpen(true)
                 }
               >
-                Open my real home <ArrowRight size={14} />
+                Start your home <ArrowRight size={15} />
               </button>
+            </div>
+          )}
+          {!online && (
+            <div className="info-note" role="status">
+              You’re offline.{" "}
+              {mode === "cloud"
+                ? "Reconnect before saving changes."
+                : "Demo changes are saved on this device."}
             </div>
           )}
           {error && (
@@ -984,369 +885,537 @@ export default function Illam() {
                 aria-label="Dismiss error"
                 onClick={() => setError("")}
               >
-                <X size={17} />
+                <X size={18} />
               </button>
             </div>
           )}
           <div className="page-heading">
             <div>
-              <div className="eyebrow">
-                {view === "overview"
-                  ? "EVERY DETAIL, A LITTLE CLEARER"
-                  : "YOUR HOME · " + title.toUpperCase()}
-              </div>
-              <h1>
-                {view === "overview" ? "A little closer to home." : title}
-              </h1>
-              <p>
-                {view === "overview"
-                  ? "Your build, your budget, and what needs you next."
-                  : view === "settings"
-                    ? "Make this space your own."
-                    : descriptions[view]}
-              </p>
-            </div>
-            <div className="heading-actions">
               {view === "overview" ? (
                 <>
-                  <button className="button" onClick={() => download("json")}>
-                    <Download size={16} /> Export
-                  </button>
-                  {editable && (
-                    <button
-                      className="button primary"
-                      onClick={() => add("transactions")}
-                    >
-                      <Plus size={17} /> Add entry
-                    </button>
-                  )}
+                  <p className="today-date">
+                    {new Intl.DateTimeFormat("en-IN", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      timeZone: "Asia/Kolkata",
+                    }).format(new Date())}
+                  </p>
+                  <h1>Your site, today.</h1>
                 </>
               ) : (
-                view !== "settings" && (
-                  <>
-                    {view === "transactions" && (
-                      <button
-                        className="button"
-                        onClick={() => download("csv")}
-                      >
-                        <Download size={16} /> CSV
-                      </button>
-                    )}
-                    {editable && (
-                      <button
-                        className="button primary"
-                        onClick={() => add(view as Section)}
-                      >
-                        <Plus size={17} /> Add{" "}
-                        {view === "transactions"
-                          ? "entry"
-                          : view === "stages"
-                            ? "stage"
-                            : view === "people"
-                              ? "person"
-                              : view === "updates"
-                                ? "update"
-                                : view === "cameras"
-                                  ? "camera"
-                                  : "new"}
-                      </button>
-                    )}
-                  </>
-                )
+                <>
+                  <button
+                    className="back-link"
+                    onClick={() =>
+                      navigate(
+                        group === "more" && view !== "more"
+                          ? "more"
+                          : "overview",
+                      )
+                    }
+                  >
+                    <ArrowLeft size={17} />{" "}
+                    {group === "more" && view !== "more" ? "More" : "Home"}
+                  </button>
+                  <h1>
+                    {group === "money"
+                      ? "Money"
+                      : group === "site"
+                        ? "Site"
+                        : title}
+                  </h1>
+                </>
               )}
             </div>
+            {view === "overview" ? (
+              <span className="site-tag">
+                <span />
+                {currentStage ? "Building" : "My home"}
+              </span>
+            ) : view !== "more" && view !== "settings" && editable ? (
+              <button
+                className="add-button"
+                onClick={() => add(view as Section)}
+                aria-label={actionTitle[view as Section]}
+              >
+                <Plus size={22} />
+              </button>
+            ) : null}
           </div>
+          {group === "money" && (
+            <div className="section-tabs" aria-label="Money sections">
+              {(["transactions", "payments"] as Section[]).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => navigate(v)}
+                  className={view === v ? "selected" : ""}
+                  aria-current={view === v ? "page" : undefined}
+                >
+                  {v === "transactions" ? "All entries" : "Payments due"}
+                  {v === "payments" &&
+                    project.payments.some((r) => r.status === "Pending") && (
+                      <span className="tab-dot" />
+                    )}
+                </button>
+              ))}
+            </div>
+          )}
+          {group === "site" && (
+            <div className="section-tabs" aria-label="Site sections">
+              {(["updates", "stages", "materials"] as Section[]).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => navigate(v)}
+                  className={view === v ? "selected" : ""}
+                  aria-current={view === v ? "page" : undefined}
+                >
+                  {v === "updates"
+                    ? "Site diary"
+                    : v === "stages"
+                      ? "Work plan"
+                      : "Materials"}
+                </button>
+              ))}
+            </div>
+          )}
           {mode === "cloud" && !active ? (
-            <div className="welcome panel">
-              <House size={46} />
-              <h2>Every home starts somewhere.</h2>
+            <section className="welcome">
+              <HardHat size={40} />
+              <h2>Let’s set up your home.</h2>
               <p>
-                Create your own project. Your real home starts with a clean
-                slate.
+                Start with your budget. Add payments and site updates as you go.
               </p>
               <button
                 disabled={busy}
                 className="button primary"
                 onClick={newHome}
               >
-                <Plus size={16} /> Create my home
+                <Plus size={20} /> Create my home
               </button>
-            </div>
+            </section>
           ) : (
             <>
               {view === "overview" && (
                 <>
-                  <div className="overview-grid">
-                    <section className="home-hero">
-                      <div className="hero-copy">
-                        <span className="hero-pill">
-                          <span />{" "}
-                          {currentStage
-                            ? "Construction in progress"
-                            : "Your home journey"}
-                        </span>
-                        <h2>{project.name}</h2>
-                        <p>
-                          {project.location ||
-                            "Add your location in project settings"}
-                        </p>
-                        <div className="hero-bottom">
-                          <span className="hero-progress">
-                            {f.progress}
-                            <small>%</small>
-                          </span>
-                          <div>
-                            <strong>of stages complete</strong>
-                            <small>Equal-weight stage average</small>
-                          </div>
-                        </div>
-                        <div className="hero-track">
-                          <span style={{ width: f.progress + "%" }} />
-                        </div>
-                        <button onClick={() => navigate("stages")}>
-                          View your build plan <ArrowRight size={16} />
-                        </button>
-                      </div>
-                      <HouseDrawing />
-                    </section>
-                    <section className="funding-card">
-                      <div className="spread">
-                        <span className="eyebrow">LOOKING AHEAD · 14 DAYS</span>
-                        <Wallet size={19} />
-                      </div>
-                      <h3>
-                        {f.topup
-                          ? "A little planning goes a long way."
-                          : "Your next steps are covered."}
-                      </h3>
-                      <p>
-                        {f.topup
-                          ? "Additional funds needed, including your reserve."
-                          : "Available funds cover recorded upcoming payments and reserve."}
-                      </p>
-                      <div className="funding-amount">{fmt(f.topup)}</div>
-                      <div className="funding-details">
-                        <span>
-                          Scheduled payments <strong>{fmt(f.due)}</strong>
-                        </span>
-                        <span>
-                          Reserve to maintain{" "}
-                          <strong>{fmt(project.reserve)}</strong>
-                        </span>
-                        <span>
-                          Available funds <strong>{fmt(f.available)}</strong>
-                        </span>
-                      </div>
+                  <section
+                    className="balance-block"
+                    aria-label="Construction funds"
+                  >
+                    <div className="balance-label">
+                      Money available{" "}
                       <button
-                        className="button"
-                        onClick={() =>
-                          editable
-                            ? add("transactions", {
-                                kind: "Contribution",
-                                category: "Funding",
-                                to: "House fund",
-                              })
-                            : navigate("payments")
-                        }
+                        onClick={() => navigate("transactions")}
+                        aria-label="View money details"
                       >
-                        {editable ? "Record added funds" : "View payments"}{" "}
-                        <ArrowRight size={15} />
+                        <ArrowUpRight size={20} />
                       </button>
-                      <small>
-                        Includes pending requests; confirm before funding.
-                      </small>
-                    </section>
-                  </div>
-                  <div className="stat-grid">
-                    <div className="stat-card">
-                      <span>
-                        Total budget <Wallet size={16} />
-                      </span>
-                      <strong>{fmt(project.budget)}</strong>
-                      <small>Your planned investment</small>
                     </div>
-                    <div className="stat-card">
-                      <span>
-                        Spent so far <ArrowUpRight size={17} />
-                      </span>
-                      <strong>{fmt(f.spent)}</strong>
-                      <small>
-                        {project.budget
-                          ? Math.round((f.spent / project.budget) * 100)
-                          : 0}
-                        % of total budget
-                      </small>
-                    </div>
-                    <div className="stat-card">
-                      <span>
-                        Available funds <ArrowDownLeft size={17} />
-                      </span>
-                      <strong className={f.available < 0 ? "negative" : ""}>
-                        {fmt(f.available)}
-                      </strong>
-                      <small>Contributions less expenses</small>
-                    </div>
-                    <div className="stat-card">
-                      <span>
-                        Forecast final cost <Layers size={17} />
-                      </span>
-                      <strong>{fmt(f.forecast)}</strong>
-                      <small>
-                        {f.forecast > project.budget
-                          ? "Above your planned budget"
-                          : "Based on recorded estimates"}
-                      </small>
-                    </div>
-                  </div>
-                  <div className="lower-grid">
-                    <section className="panel">
-                      <div className="panel-heading">
-                        <div>
-                          <h2>Coming up next</h2>
-                          <p>Payments on the horizon</p>
-                        </div>
-                        <button
-                          className="text-link"
-                          onClick={() => navigate("payments")}
-                        >
-                          View all <ArrowRight size={15} />
-                        </button>
-                      </div>
-                      {f.upcoming.length ? (
-                        f.upcoming.slice(0, 3).map(paymentCard)
-                      ) : (
-                        <Empty title="No upcoming payment requests." />
-                      )}
-                      <div className="panel-foot">
-                        <ShieldCheck size={15} /> Verify work before approving a
-                        payment.
-                      </div>
-                    </section>
-                    <section className="panel">
-                      <div className="panel-heading">
-                        <div>
-                          <h2>Around the site</h2>
-                          <p>The latest from your build</p>
-                        </div>
-                        <button
-                          className="text-link"
-                          onClick={() => navigate("updates")}
-                        >
-                          Site diary <ArrowRight size={15} />
-                        </button>
-                      </div>
-                      {project.updates.slice(0, 2).map((r) => (
-                        <div className="diary-row" key={r.id}>
-                          <span className="diary-dot" />
-                          <div>
-                            <small>
-                              {r.date} · {r.author}
-                            </small>
-                            <h3>{r.title}</h3>
-                            <p>{r.note}</p>
-                          </div>
-                        </div>
-                      ))}
-                      {!project.updates.length && (
-                        <Empty title="Your site updates will appear here." />
-                      )}
-                    </section>
-                  </div>
-                  <section className="attention-strip">
-                    <div>
-                      <span className="attention-icon">
-                        <ClipboardCheck size={22} />
-                      </span>
-                      <div>
-                        <h3>
-                          {pending
-                            ? `${pending} things need your attention`
-                            : "A moment of calm."}
-                        </h3>
-                        <p>
-                          {pending
-                            ? "Payment requests and decisions are waiting for a review."
-                            : "You have no pending approvals right now."}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      className="text-link"
-                      onClick={() =>
-                        navigate(
-                          project.payments.some((r) => r.status === "Pending")
-                            ? "payments"
-                            : "decisions",
-                        )
+                    <div
+                      className={
+                        "main-balance " + (f.available < 0 ? "negative" : "")
                       }
                     >
-                      Take a look <ArrowRight size={16} />
+                      {fmt(f.available)}
+                    </div>
+                    <div className="balance-split">
+                      <div>
+                        <span>Spent so far</span>
+                        <strong>{fmt(f.spent)}</strong>
+                      </div>
+                      <div>
+                        <span>Total budget</span>
+                        <strong>{fmt(project.budget)}</strong>
+                      </div>
+                    </div>
+                  </section>
+                  {editable && (
+                    <div className="quick-actions">
+                      <button
+                        className="button primary"
+                        onClick={() => add("transactions", { kind: "Expense" })}
+                      >
+                        <Plus size={20} /> Add expense
+                      </button>
+                      <button className="button" onClick={() => add("updates")}>
+                        <Camera size={20} /> Site update
+                      </button>
+                    </div>
+                  )}
+                  <section className="funding-note">
+                    <div className="funding-sign">
+                      <Wallet size={21} />
+                    </div>
+                    <div className="grow">
+                      <h2>
+                        {f.topup
+                          ? `Plan to add ${fmt(f.topup)}`
+                          : "Funds cover the next 14 days"}
+                      </h2>
+                      <p>
+                        {f.topup
+                          ? "For payments coming up in the next 14 days."
+                          : "Based on the payments recorded so far."}
+                      </p>
+                      <details>
+                        <summary>How is this calculated?</summary>
+                        <p>
+                          {fmt(f.due)} due + {fmt(project.reserve)} reserve −{" "}
+                          {fmt(f.available)} available. Includes pending and
+                          overdue requests.
+                        </p>
+                      </details>
+                    </div>
+                    <button
+                      className="icon-button"
+                      aria-label="View upcoming payments"
+                      onClick={() => navigate("payments")}
+                    >
+                      <ChevronRight size={22} />
                     </button>
+                  </section>
+                  <section className="home-section">
+                    <div className="section-heading">
+                      <h2>
+                        Needs your attention{" "}
+                        <span>{pending + lowStock.length}</span>
+                      </h2>
+                    </div>
+                    <div className="action-list">
+                      {project.payments
+                        .filter((r) => r.status === "Pending")
+                        .slice(0, 2)
+                        .map((r) => (
+                          <button
+                            className="action-row"
+                            key={r.id}
+                            onClick={() => navigate("payments")}
+                          >
+                            <span className="action-symbol">
+                              <ClipboardCheck size={21} />
+                            </span>
+                            <span className="grow">
+                              <strong>{r.title}</strong>
+                              <small>
+                                {r.party} · {fmt(Number(r.amount))}
+                              </small>
+                            </span>
+                            <span className="action-state">Review</span>
+                            <ChevronRight size={17} />
+                          </button>
+                        ))}
+                      {project.decisions
+                        .filter((r) => r.status === "Pending")
+                        .slice(0, 2)
+                        .map((r) => (
+                          <button
+                            className="action-row"
+                            key={r.id}
+                            onClick={() => navigate("decisions")}
+                          >
+                            <span className="action-symbol">
+                              <Check size={21} />
+                            </span>
+                            <span className="grow">
+                              <strong>{r.title}</strong>
+                              <small>
+                                Decide by {dateLabel(String(r.due))}
+                              </small>
+                            </span>
+                            <ChevronRight size={17} />
+                          </button>
+                        ))}
+                      {lowStock.slice(0, 1).map((r) => (
+                        <button
+                          className="action-row"
+                          key={r.id}
+                          onClick={() => navigate("materials")}
+                        >
+                          <span className="action-symbol">
+                            <Package size={21} />
+                          </span>
+                          <span className="grow">
+                            <strong>{r.title}</strong>
+                            <small>
+                              {Number(r.received) - Number(r.used)} {r.unit}{" "}
+                              left · Running low
+                            </small>
+                          </span>
+                          <ChevronRight size={17} />
+                        </button>
+                      ))}
+                      {pending + lowStock.length === 0 && (
+                        <p className="quiet-note">
+                          <Check size={18} /> Nothing waiting for your review.
+                        </p>
+                      )}
+                    </div>
+                  </section>
+                  <section className="home-section">
+                    <div className="section-heading">
+                      <h2>On site</h2>
+                      <button
+                        className="text-link"
+                        onClick={() => navigate("updates")}
+                      >
+                        Open diary <ArrowRight size={16} />
+                      </button>
+                    </div>
+                    {currentStage && (
+                      <button
+                        className="current-work"
+                        onClick={() => navigate("stages")}
+                      >
+                        <span className="work-icon">
+                          <HardHat size={24} />
+                        </span>
+                        <span className="grow">
+                          <small>In progress</small>
+                          <strong>{currentStage.title}</strong>
+                          <div className="progress">
+                            <span
+                              style={{
+                                width: Number(currentStage.progress) + "%",
+                              }}
+                            />
+                          </div>
+                        </span>
+                        <strong>{currentStage.progress}%</strong>
+                      </button>
+                    )}
+                    {project.updates[0] ? (
+                      <article className="latest-note">
+                        <div className="note-meta">
+                          <span className="avatar">
+                            {String(project.updates[0].author).slice(0, 1)}
+                          </span>
+                          <span>
+                            <strong>{project.updates[0].author}</strong>
+                            <small>
+                              {dateLabel(String(project.updates[0].date))} ·{" "}
+                              {project.updates[0].workers} people on site
+                            </small>
+                          </span>
+                        </div>
+                        <h3>{project.updates[0].title}</h3>
+                        <p>{project.updates[0].note}</p>
+                        {linkFor(project.updates[0])}
+                      </article>
+                    ) : (
+                      <Empty
+                        title="Add a photo or a few lines about today’s work."
+                        onAdd={editable ? () => add("updates") : undefined}
+                      />
+                    )}
                   </section>
                 </>
               )}
-              {view !== "overview" && view !== "settings" && (
+              {view === "more" && (
                 <>
-                  <div className="section-toolbar">
-                    <div className="search-box">
-                      <Search size={17} />
-                      <input
-                        aria-label="Search entries"
-                        placeholder={
-                          "Search " + labels[view].toLowerCase() + "…"
-                        }
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                      />
-                    </div>
-                    <span className="muted">
-                      {project[view].length} entries
-                    </span>
-                  </div>
-                  {view === "transactions" && (
-                    <div className="info-note">
-                      <ArrowLeftRight size={17} />
-                      <span>
-                        Transfers move custody of funds. They are not expenses.
-                        Record a supplier payment separately when that money is
-                        spent.
-                      </span>
-                    </div>
-                  )}
-                  {view === "cameras" && (
-                    <div className="info-note">
-                      <ShieldCheck size={18} />
-                      <span>
-                        Add your camera provider’s secure viewing portal.
-                        Streams open with that provider’s sign-in; ILLAM does
-                        not record or analyse people.
-                      </span>
-                    </div>
-                  )}
-                  {view === "stages" && (
-                    <div className="info-note">
-                      Remaining estimates should exclude approved payment
-                      requests. Forecast = spent + approved unpaid requests +
-                      uncommitted estimates.
-                    </div>
-                  )}
-                  {view === "transactions" && (
-                    <div className="account-balances">
-                      {Object.entries(accountBalances(project)).map(
-                        ([name, balance]) => (
-                          <div key={name}>
-                            <span>{name}</span>
-                            <strong className={balance < 0 ? "negative" : ""}>
-                              {fmt(balance)}
+                  <p className="page-description">
+                    Everything else for your build.
+                  </p>
+                  <div className="more-list">
+                    {(
+                      [
+                        "people",
+                        "documents",
+                        "decisions",
+                        "cameras",
+                        "settings",
+                      ] as View[]
+                    ).map((v) => {
+                      const Icon = icons[v];
+                      const notes: Record<string, string> = {
+                        people: "Contractor, architect & your team",
+                        documents: "Drawings, bills & agreements",
+                        decisions: "Changes that need your approval",
+                        cameras: "Open your site cameras",
+                        settings: "Budget, home details & access",
+                      };
+                      return (
+                        <button
+                          className="more-row"
+                          key={v}
+                          onClick={() => navigate(v)}
+                        >
+                          <Icon size={23} />
+                          <span className="grow">
+                            <strong>
+                              {v === "settings"
+                                ? "Home settings"
+                                : labels[v as Section]}
                             </strong>
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  )}
-                  {sectionContent(view)}
+                            <small>{notes[v]}</small>
+                          </span>
+                          <ChevronRight size={19} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <AppInstall />
+                  <div className="more-list">
+                    <button
+                      className="more-row"
+                      onClick={() => download("csv")}
+                    >
+                      <Download size={22} />
+                      <span className="grow">
+                        <strong>Download expenses</strong>
+                        <small>Spreadsheet-friendly CSV</small>
+                      </span>
+                      <ChevronRight size={19} />
+                    </button>
+                    <button
+                      className="more-row"
+                      onClick={() => download("json")}
+                    >
+                      <FileText size={22} />
+                      <span className="grow">
+                        <strong>Export project data</strong>
+                        <small>Save a copy of your records</small>
+                      </span>
+                      <ChevronRight size={19} />
+                    </button>
+                    <button
+                      className="more-row"
+                      onClick={() =>
+                        user
+                          ? run(async () => {
+                              await authClient.signOut();
+                              setUser(null);
+                              setActive(null);
+                              setMode("demo");
+                              setProject(
+                                JSON.parse(
+                                  localStorage.getItem(STORAGE) || "null",
+                                ) || demoProject(),
+                              );
+                              navigate("overview");
+                            })
+                          : setAuthOpen(true)
+                      }
+                    >
+                      {user ? <LogOut size={22} /> : <Users size={22} />}
+                      <span className="grow">
+                        <strong>
+                          {user ? "Sign out" : "Sign in or create account"}
+                        </strong>
+                        <small>
+                          {user?.email || "Start your own home project"}
+                        </small>
+                      </span>
+                      <ChevronRight size={19} />
+                    </button>
+                  </div>
+                  <p className="app-version">
+                    ILLAM · Made for the everyday work of building.
+                  </p>
                 </>
               )}
+              {view !== "overview" &&
+                view !== "settings" &&
+                view !== "more" && (
+                  <>
+                    {view === "transactions" && (
+                      <>
+                        <section className="money-summary">
+                          <div>
+                            <span>Available</span>
+                            <strong>{fmt(f.available)}</strong>
+                          </div>
+                          <div>
+                            <span>Spent</span>
+                            <strong>{fmt(f.spent)}</strong>
+                          </div>
+                        </section>
+                        <div className="money-actions">
+                          {editable && (
+                            <>
+                              <button
+                                className="button primary"
+                                onClick={() =>
+                                  add("transactions", { kind: "Expense" })
+                                }
+                              >
+                                <Plus size={19} /> Expense
+                              </button>
+                              <button
+                                className="button"
+                                onClick={() =>
+                                  add("transactions", {
+                                    kind: "Contribution",
+                                    category: "Funding",
+                                    to: "House fund",
+                                  })
+                                }
+                              >
+                                <ArrowDownLeft size={19} /> Add funds
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        <details className="plain-details">
+                          <summary>Budget & account balances</summary>
+                          <div className="account-balances">
+                            {Object.entries(accountBalances(project)).map(
+                              ([name, balance]) => (
+                                <div key={name}>
+                                  <span>{name}</span>
+                                  <strong>{fmt(balance)}</strong>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                          <p>
+                            Budget: {fmt(project.budget)} · Forecast:{" "}
+                            {fmt(f.forecast)}
+                          </p>
+                          <small>
+                            Transfers move money between accounts. They don’t
+                            count as spending.
+                          </small>
+                        </details>
+                      </>
+                    )}
+                    <div className="section-toolbar">
+                      <div className="search-box">
+                        <Search size={19} />
+                        <input
+                          aria-label="Search entries"
+                          placeholder="Find an entry…"
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                        />
+                        {search && (
+                          <button
+                            className="icon-button"
+                            aria-label="Clear search"
+                            onClick={() => setSearch("")}
+                          >
+                            <X size={18} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {view === "cameras" && (
+                      <p className="page-description">
+                        Add a secure viewing link from your camera provider.
+                      </p>
+                    )}
+                    {view === "stages" && (
+                      <details className="plain-details">
+                        <summary>About progress & cost estimates</summary>
+                        <p>
+                          Progress is entered by your team. Remaining estimates
+                          should exclude amounts already in approved payment
+                          requests.
+                        </p>
+                      </details>
+                    )}
+                    {sectionContent(view)}
+                  </>
+                )}
               {view === "settings" && (
                 <div className="settings-grid">
                   <section className="panel settings-panel">
@@ -1590,19 +1659,129 @@ export default function Illam() {
               )}
             </>
           )}
-          <footer className="footer">
-            <span>
-              ILLAM <span>·</span> Built around your home.
-            </span>
-            <span>
-              {mode === "demo"
-                ? "Sample project · Browser storage"
-                : "Private project · Neon"}{" "}
-              <Leaf size={13} />
-            </span>
-          </footer>
         </div>
       </main>
+      <nav className="bottom-nav" aria-label="Main navigation">
+        <button
+          className={group === "home" ? "active" : ""}
+          aria-current={group === "home" ? "page" : undefined}
+          onClick={() => navigate("overview")}
+        >
+          <House size={23} />
+          <span>Home</span>
+        </button>
+        <button
+          className={group === "money" ? "active" : ""}
+          aria-current={group === "money" ? "page" : undefined}
+          onClick={() => navigate("transactions")}
+        >
+          <Wallet size={23} />
+          <span>Money</span>
+        </button>
+        <button
+          className="central-add"
+          aria-label="Add an entry"
+          disabled={!editable}
+          onClick={() => setQuickAdd(true)}
+        >
+          <Plus size={28} />
+        </button>
+        <button
+          className={group === "site" ? "active" : ""}
+          aria-current={group === "site" ? "page" : undefined}
+          onClick={() => navigate("updates")}
+        >
+          <HardHat size={23} />
+          <span>Site</span>
+        </button>
+        <button
+          className={group === "more" ? "active" : ""}
+          aria-current={group === "more" ? "page" : undefined}
+          onClick={() => navigate("more")}
+        >
+          <MoreHorizontal size={25} />
+          <span>More</span>
+        </button>
+      </nav>
+      {quickAdd && (
+        <Modal
+          title="What would you like to add?"
+          close={() => setQuickAdd(false)}
+        >
+          <div className="add-menu">
+            {[
+              {
+                section: "transactions",
+                kind: "Expense",
+                label: "An expense",
+                note: "Record money you paid",
+                Icon: ArrowUpRight,
+              },
+              {
+                section: "transactions",
+                kind: "Contribution",
+                label: "Money added",
+                note: "Add funds to your home",
+                Icon: ArrowDownLeft,
+              },
+              {
+                section: "transactions",
+                kind: "Transfer",
+                label: "A transfer",
+                note: "Move money to a supervisor or account",
+                Icon: ArrowLeftRight,
+              },
+              {
+                section: "payments",
+                label: "A payment request",
+                note: "An upcoming bill or milestone",
+                Icon: ClipboardCheck,
+              },
+              {
+                section: "updates",
+                label: "A site update",
+                note: "Work done, photos or a problem",
+                Icon: Camera,
+              },
+              {
+                section: "materials",
+                label: "A material",
+                note: "Track received and used stock",
+                Icon: Package,
+              },
+            ].map((item) => (
+              <button
+                key={item.label}
+                className="more-row"
+                onClick={() =>
+                  add(
+                    item.section as Section,
+                    item.kind
+                      ? {
+                          kind: item.kind,
+                          category:
+                            item.kind === "Contribution"
+                              ? "Funding"
+                              : item.kind === "Transfer"
+                                ? "Transfer"
+                                : "Materials",
+                          to: item.kind === "Contribution" ? "House fund" : "",
+                        }
+                      : undefined,
+                  )
+                }
+              >
+                <item.Icon size={24} />
+                <span className="grow">
+                  <strong>{item.label}</strong>
+                  <small>{item.note}</small>
+                </span>
+                <ChevronRight size={18} />
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
       {notice && (
         <div className="toast" role="status">
           <Check size={17} />
@@ -1612,39 +1791,65 @@ export default function Illam() {
       {modal && (
         <Modal
           title={
-            (modal.row ? "Edit " : "Add ") + labels[modal.section].toLowerCase()
+            modal.row
+              ? "Edit entry"
+              : modal.section === "transactions"
+                ? "Record money"
+                : actionTitle[modal.section]
           }
           close={() => setModal(null)}
         >
           <form onSubmit={rowSubmit}>
             <div className="form-grid">
-              {fields[modal.section].map((field) => (
-                <FormField
-                  key={field.key}
-                  field={field}
-                  value={
-                    modal.row?.[field.key] ??
-                    modal.defaults?.[field.key] ??
-                    (field.type === "date"
-                      ? day()
-                      : field.key === "account" || field.key === "from"
-                        ? "House fund"
-                        : field.key === "version"
-                          ? "1"
-                          : field.type === "number"
-                            ? 0
-                            : undefined)
-                  }
+              {modal.section === "transactions" ? (
+                <QuickMoneyForm
+                  row={modal.row}
+                  defaults={modal.defaults}
+                  currency={project.currency}
+                  accounts={Object.keys(accountBalances(project))}
                 />
-              ))}
+              ) : modal.section === "updates" ? (
+                <QuickSiteForm
+                  row={modal.row}
+                  author={user?.email.split("@")[0] || "Homeowner"}
+                />
+              ) : (
+                <>
+                  {fields[modal.section].map((field) => (
+                    <FormField
+                      key={field.key}
+                      field={field}
+                      value={
+                        modal.row?.[field.key] ??
+                        modal.defaults?.[field.key] ??
+                        (field.type === "date"
+                          ? day()
+                          : field.key === "account" || field.key === "from"
+                            ? "House fund"
+                            : field.key === "version"
+                              ? "1"
+                              : field.type === "number"
+                                ? 0
+                                : undefined)
+                      }
+                    />
+                  ))}
+                </>
+              )}
               {(modal.section === "documents" ||
                 modal.section === "updates") && (
                 <label className="full-width">
-                  Private attachment (PDF, JPG, PNG, WebP)
+                  {modal.section === "updates"
+                    ? "Add a photo (optional)"
+                    : "Attach a file (PDF or image)"}
                   <input
                     type="file"
                     name="file"
-                    accept="application/pdf,image/jpeg,image/png,image/webp"
+                    accept={
+                      modal.section === "updates"
+                        ? "image/jpeg,image/png,image/webp"
+                        : "application/pdf,image/jpeg,image/png,image/webp"
+                    }
                     disabled={mode === "demo"}
                   />
                   <small>
@@ -1678,11 +1883,11 @@ export default function Illam() {
       )}
       {authOpen && !verifyEmail && resetStep === "none" && (
         <Modal
-          title={signup ? "Start your home journey" : "Welcome home"}
+          title={signup ? "Create your account" : "Sign in"}
           close={() => setAuthOpen(false)}
         >
           <p className="modal-intro">
-            A private space for your build. Your demo stays separate.
+            Use your email to save and share your home project.
           </p>
           <form onSubmit={authenticate}>
             {signup && (
@@ -1965,6 +2170,7 @@ function FormField({
         <input
           name={field.key}
           type={field.type || "text"}
+          inputMode={field.type === "number" ? "decimal" : undefined}
           defaultValue={value}
           required={field.required}
           min={
@@ -1991,7 +2197,7 @@ function Modal({
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const old = document.activeElement as HTMLElement;
-    ref.current?.querySelector<HTMLElement>("input,button,select")?.focus();
+    ref.current?.querySelector<HTMLElement>("button")?.focus();
     const before = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -2016,7 +2222,7 @@ function Modal({
           if (e.key !== "Tab") return;
           const nodes = Array.from(
             ref.current?.querySelectorAll<HTMLElement>(
-              "button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]",
+              "button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],summary",
             ) || [],
           );
           if (e.shiftKey && document.activeElement === nodes[0]) {
