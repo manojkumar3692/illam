@@ -56,6 +56,7 @@ import { fields, labels, type Field } from "@/lib/fields";
 import { authClient } from "@/lib/auth/client";
 import AppInstall from "@/components/app-install";
 import QuickMoneyForm from "@/components/quick-money-form";
+import ImportExpenses from "@/components/import-expenses";
 import QuickSiteForm from "@/components/quick-site-form";
 type View = "overview" | Section | "settings" | "more";
 type CloudProject = {
@@ -131,6 +132,7 @@ export default function Illam() {
   const [mode, setMode] = useState<"demo" | "cloud">("demo");
   const [view, setView] = useState<View>("overview");
   const [search, setSearch] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
   const [quickAdd, setQuickAdd] = useState(false);
   const [online, setOnline] = useState(true);
   const [notice, setNotice] = useState("");
@@ -167,12 +169,18 @@ export default function Illam() {
       setProject(demoProject());
       setError("Could not read the saved demo. Showing sample data.");
     }
+    const auth = new URLSearchParams(window.location.search).get("auth");
+    if (auth) {
+      setSignup(auth === "signup");
+      setAuthOpen(true);
+    }
     setReady(true);
     api("session")
       .then(async (r) => {
         setConfigured(r.configured);
         if (r.user) {
           setUser(r.user);
+          setAuthOpen(false);
           await loadCloud();
         }
       })
@@ -931,7 +939,11 @@ export default function Illam() {
             {view === "overview" ? (
               <span className="site-tag">
                 <span />
-                {currentStage ? "Building" : "My home"}
+                {currentStage
+                  ? "Building"
+                  : project.stages.length
+                    ? "My home"
+                    : "Ground zero"}
               </span>
             ) : view !== "more" && view !== "settings" && editable ? (
               <button
@@ -1253,6 +1265,14 @@ export default function Illam() {
                       );
                     })}
                   </div>
+                  <a className="more-row" href="/shop">
+                    <Package size={23} />
+                    <span className="grow">
+                      <strong>ILLAM Shop</strong>
+                      <small>Materials, CCTV & water loads · Coming soon</small>
+                    </span>
+                    <ChevronRight size={19} />
+                  </a>
                   <AppInstall />
                   <div className="more-list">
                     <button
@@ -1412,6 +1432,19 @@ export default function Illam() {
                           requests.
                         </p>
                       </details>
+                    )}
+                    {view === "transactions" && editable && (
+                      <button
+                        className="import-launch"
+                        onClick={() => setImportOpen(true)}
+                      >
+                        <FileText size={22} />
+                        <span>
+                          <strong>Read a bill or statement</strong>
+                          <small>PDF, photo or CSV → review → save</small>
+                        </span>
+                        <ChevronRight size={18} />
+                      </button>
                     )}
                     {sectionContent(view)}
                   </>
@@ -1787,6 +1820,23 @@ export default function Illam() {
           <Check size={17} />
           {notice}
         </div>
+      )}
+      {importOpen && (
+        <Modal
+          title="Read a bill or statement"
+          close={() => setImportOpen(false)}
+        >
+          <ImportExpenses
+            existing={project.transactions}
+            onSave={async (rows) => {
+              await save({
+                ...project,
+                transactions: [...project.transactions, ...rows],
+              });
+              setImportOpen(false);
+            }}
+          />
+        </Modal>
       )}
       {modal && (
         <Modal

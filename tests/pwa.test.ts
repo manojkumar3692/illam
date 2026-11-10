@@ -57,7 +57,7 @@ test("Online navigation stays fresh and is not replaced by cache", async () => {
 test("Install manifest has real PNG icons matching declared dimensions", () => {
   const m = manifest();
   assert.equal(m.display, "standalone");
-  assert.equal(m.start_url, "/");
+  assert.equal(m.start_url, "/app");
   for (const icon of m.icons || []) {
     const data = readFileSync("public" + icon.src);
     const [w, h] = icon.sizes!.split("x").map(Number);

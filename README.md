@@ -90,3 +90,15 @@ Install from **More → Install**. On iPhone, open in Safari and use Share → A
 The service worker caches only icons and a generic offline page. It does not cache financial records, auth responses, private attachments or API requests. Real projects require internet. If connectivity drops while the app is open, it explains that saving needs a connection. No offline queue or background sync is claimed.
 
 Mobile QA: 390px browser layout, quick expense creation, ledger, bottom navigation and installation guidance. Existing financial tests remain applicable.
+
+## Public introduction, shop preview and imports
+
+`/` introduces ILLAM with free signup, login and a sample-home preview. `/app` is the construction app and installed-app launch route. `/shop` is a public coming-soon catalogue for CCTV, cement, bricks, paint, home essentials and water loads. There is no ordering, payment or delivery-request collection.
+
+Money → **Read a bill or statement** reads PDF text with PDF.js, CSV statements, and English scan/photo text with Tesseract.js. Extraction runs in the browser. OCR downloads its worker/core/language resources from the library's public CDNs; documents are not uploaded to an AI service. Files are limited to 15 MB, PDFs to 20 pages, and OCR PDFs to 5 scanned pages. Original documents are not attached automatically. The PDF worker in `public/vendor` must be updated alongside `pdfjs-dist`.
+
+Recognition is a review aid, not universal bank-format recognition. CSV supports Date/Transaction Date/Txn Date, Description/Narration/Particulars/Party, Debit/Withdrawal, Credit/Deposit, or Amount and Type columns. Dates accept ISO or day/month/year. PDF statements suggest dated rows, and only infer amounts with explicit DR/CR labels; otherwise the amount stays zero for correction. Bills prefer labelled grand/net totals. Missing dates default to today. English OCR quality depends on the scan. No stock quantities are automatically imported.
+
+No draft is selected by default. Users correct entries, choose expense/funds-added/transfer, confirm review and save. Exact date/amount/movement/party matches are flagged as likely duplicates and blocked until corrected or unselected. Unpaid bills should not be recorded as paid expenses. The existing project revision check protects cloud saves against concurrent edits.
+
+Browser acceptance checks used synthetic files only: CSV debit/credit import through saved demo ledger; text PDF bill total/date; photo-bill OCR total/date; 390px mobile layout. Vani Home is separately provisioned with zero financial entries and no sample progress or stock. The owner's account was verified using the email code supplied during setup.
