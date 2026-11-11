@@ -174,6 +174,9 @@ export default function TeamWorkspace({
       </header>
       <main className="content">
         <p className="eyebrow">{active.role} access</p>
+        <a href="/shop" className="team-shop-link">
+          ILLAM Shop <span>Cameras, paint & site essentials ↗</span>
+        </a>
         {projects.length > 1 && (
           <button className="button" disabled={busy} onClick={onChooseProjects}>
             All my projects ({projects.length})

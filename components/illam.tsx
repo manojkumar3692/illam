@@ -1725,7 +1725,7 @@ export default function Illam() {
                     <Package size={23} />
                     <span className="grow">
                       <strong>ILLAM Shop</strong>
-                      <small>Materials, CCTV & water loads · Coming soon</small>
+                      <small>Cameras, paint, tools & site essentials</small>
                     </span>
                     <ChevronRight size={19} />
                   </a>

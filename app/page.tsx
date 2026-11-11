@@ -97,11 +97,13 @@ export default function Page() {
           })}
         </section>
         <Link href="/shop" className="shop-invite">
-          <span className="eyebrow">THE ILLAM SHOP · COMING SOON</span>
+          <span className="eyebrow">THE ILLAM SHOP</span>
           <h2>Everything your site needs.</h2>
-          <p>Cement to cameras. Paint to a water load.</p>
+          <p>
+            Useful picks for your build. Browse by category and shop on Amazon.
+          </p>
           <span>
-            Explore what’s coming <ArrowRight size={18} />
+            Explore the shop <ArrowRight size={18} />
           </span>
         </Link>
         <section className="welcome-end">
