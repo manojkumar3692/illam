@@ -11,6 +11,10 @@ import {
   Search,
   Droplets,
   Truck,
+  Cable,
+  Fan,
+  Vault,
+  PanelsTopLeft,
 } from "lucide-react";
 import {
   amazonSearch,
@@ -23,6 +27,10 @@ const icons = {
   CCTV: Camera,
   Cement: Package,
   Paint: Paintbrush,
+  Wires: Cable,
+  Fans: Fan,
+  Lockers: Vault,
+  Switchboards: PanelsTopLeft,
   Equipment: Hammer,
   Safety: HardHat,
   Home: Lamp,
@@ -39,7 +47,7 @@ export default function ShopCatalogue() {
           <input
             type="search"
             aria-label="Search shop"
-            placeholder="Find cameras, paint, tools…"
+            placeholder="Find wires, fans, cameras, tools…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

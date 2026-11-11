@@ -3,6 +3,10 @@ export const shopCategories = [
   "CCTV",
   "Cement",
   "Paint",
+  "Wires",
+  "Fans",
+  "Lockers",
+  "Switchboards",
   "Equipment",
   "Safety",
   "Home",
@@ -26,6 +30,65 @@ export type ShopPick = {
   local?: boolean;
 };
 export const shopPicks: ShopPick[] = [
+  {
+    name: "House wiring cables",
+    category: "Wires",
+    use: "Plan wiring room by room before plastering starts.",
+    check:
+      "Have your electrician specify conductor size, insulation, circuit load and required certification. Compare coil lengths.",
+    query: "Havells Polycab house wiring copper wire",
+  },
+  {
+    name: "Conduit pipes & fittings",
+    category: "Wires",
+    use: "Protect and route wiring through walls and ceilings.",
+    check:
+      "Match conduit diameter, fittings and quantity to your electrical plan.",
+    query: "electrical conduit pipe fittings",
+  },
+  {
+    name: "Atomberg BLDC ceiling fans",
+    category: "Fans",
+    use: "Shortlist ceiling fans while planning the rooms and electrical points.",
+    check:
+      "Compare sweep size, controls, ceiling clearance and installation support.",
+    query: "Atomberg BLDC ceiling fan",
+    source: "https://atomberg.com/collections/atomberg-ceiling-fans",
+  },
+  {
+    name: "Exhaust fans",
+    category: "Fans",
+    use: "Plan ventilation for bathrooms and utility spaces.",
+    check:
+      "Check cutout size, airflow needs and suitability for the installation location.",
+    query: "bathroom exhaust fan",
+  },
+  {
+    name: "Godrej NX Pro Digital home locker",
+    category: "Lockers",
+    use: "Plan a dedicated place for documents and valuables.",
+    check:
+      "Compare capacity, anchoring, backup access and the model’s stated security rating.",
+    query: "Godrej NX Pro Digital home locker",
+    source:
+      "https://www.godrejenterprises.com/locks-and-security/home-lockers/pro-strength-lockers/p/nx-pro-digital-15l",
+  },
+  {
+    name: "Modular switchboards",
+    category: "Switchboards",
+    use: "Choose matching switches, sockets and plates for each room.",
+    check:
+      "Confirm module count, box size, current rating and compatible parts with your electrician.",
+    query: "Anchor modular switches sockets switch board plate",
+  },
+  {
+    name: "Distribution boards & circuit protection",
+    category: "Switchboards",
+    use: "Shortlist the enclosure and protection equipment for your electrical plan.",
+    check:
+      "Your electrician must specify compatible protective devices, ratings and board capacity.",
+    query: "electrical distribution board MCB RCCB",
+  },
   {
     name: "Qubo outdoor camera",
     category: "CCTV",

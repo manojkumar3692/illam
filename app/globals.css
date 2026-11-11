@@ -2817,3 +2817,28 @@ summary::-webkit-details-marker {
     gap: 5px;
   }
 }
+
+.art-wires,
+.art-switchboards {
+  background: #eee8dc;
+  color: #786345;
+}
+.art-fans {
+  background: #e3edeb;
+  color: #3e6860;
+}
+.art-lockers {
+  background: #e8e6ec;
+  color: #635575;
+}
+.catalogue-categories {
+  flex-wrap: wrap;
+}
+@media (max-width: 540px) {
+  .catalogue-categories {
+    gap: 7px;
+  }
+  .catalogue-categories button {
+    padding: 9px 13px;
+  }
+}
