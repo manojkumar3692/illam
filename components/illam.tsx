@@ -54,6 +54,7 @@ import {
 } from "@/lib/model";
 import { fields, labels, type Field } from "@/lib/fields";
 import { authClient } from "@/lib/auth/client";
+import HomeOnboarding from "@/components/home-onboarding";
 import AppInstall from "@/components/app-install";
 import QuickMoneyForm from "@/components/quick-money-form";
 import MaterialWorkspace from "@/components/material-workspace";
@@ -173,6 +174,7 @@ export default function Illam() {
   const [configured, setConfigured] = useState(false);
   const [projects, setProjects] = useState<CloudProject[]>([]);
   const [chooseProject, setChooseProject] = useState(false);
+  const [setupHome, setSetupHome] = useState(false);
   const [active, setActive] = useState<CloudProject | null>(null);
   const [members, setMembers] = useState<Row[]>([]);
   const [removalReason, setRemovalReason] = useState("");
@@ -489,13 +491,18 @@ export default function Illam() {
       setAuthOpen(false);
     });
   }
-  async function newHome() {
-    await run(async () => {
-      const data = emptyProject();
-      const r = await api("projects", "POST", { data });
-      await loadCloud(r.id);
-      setView("settings");
-    });
+  function newHome() {
+    setSetupHome(true);
+  }
+  async function createHome(data: Project) {
+    const r = await api("projects", "POST", { data });
+    await loadCloud(r.id);
+    setSetupHome(false);
+    setChooseProject(false);
+    navigate("overview");
+    setNotice(
+      "Your home is ready. Start with your stages, first expense or team.",
+    );
   }
   const title =
     view === "overview"
@@ -1158,6 +1165,22 @@ export default function Illam() {
     documents: "Add document",
     cameras: "Add camera",
   };
+  if (mode === "cloud" && user && (!active || setupHome))
+    return (
+      <HomeOnboarding
+        email={user.email}
+        onCreate={createHome}
+        onRefresh={async () => {
+          await loadCloud();
+        }}
+        onCancel={active ? () => setSetupHome(false) : undefined}
+        onLogout={async () => {
+          const result = await authClient.signOut();
+          if (result.error) throw new Error(result.error.message);
+          window.location.replace("/");
+        }}
+      />
+    );
   if (mode === "cloud" && user && chooseProject)
     return (
       <div className="app-shell team-shell">
