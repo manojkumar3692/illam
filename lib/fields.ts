@@ -56,9 +56,13 @@ export const fields: Record<Section, Field[]> = {
   ],
   stages: [
     f("title", "Construction stage"),
-    f("owner", "Responsible person"),
-    f("due", "Target date", "date"),
+    f("owner", "Responsible person", "text", false),
+    f("due", "Target date", "date", false),
     f("progress", "Progress (%)", "number"),
+    {
+      ...f("budget", "Stage budget (optional)", "number", false),
+      hint: "A planning limit for this stage. Does not change your whole-home budget.",
+    },
     {
       ...f("remaining", "Uncommitted remaining estimate", "number"),
       hint: "Exclude amounts already in approved payment requests to avoid counting them twice.",
@@ -136,7 +140,7 @@ export const fields: Record<Section, Field[]> = {
 export const labels: Record<Section, string> = {
   transactions: "Money ledger",
   payments: "Payments",
-  stages: "Build plan",
+  stages: "Construction stages",
   materials: "Materials",
   people: "People",
   updates: "Site diary",

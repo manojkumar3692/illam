@@ -121,6 +121,7 @@ export function settlePayment(p: Project, id: string): Project {
         from: String(payment.account || "House fund"),
         to: "",
         paymentId: id,
+        stageId: payment.stageId || "",
       },
       ...p.transactions,
     ],

@@ -38,6 +38,17 @@ export const projectSchema = z
         if (ids.has(r.id))
           ctx.addIssue({ code: "custom", message: "Duplicate entry ID" });
         ids.add(r.id);
+        if (
+          section !== "stages" &&
+          r.stageId &&
+          !p.stages.some((stage) => stage.id === r.stageId)
+        )
+          ctx.addIssue({
+            code: "custom",
+            message: "Choose an existing construction stage.",
+          });
+        if (section === "stages" && !String(r.title || "").trim())
+          ctx.addIssue({ code: "custom", message: "Enter a stage name." });
         try {
           validateRow(section, r);
         } catch (e) {
@@ -63,6 +74,7 @@ export const projectSchema = z
           "used",
           "reorder",
           "remaining",
+          "budget",
           "workers",
         ])
           if (key in r && (typeof r[key] !== "number" || Number(r[key]) < 0))

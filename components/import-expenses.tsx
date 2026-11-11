@@ -8,12 +8,15 @@ import {
   parseStatementCSV,
   type Draft,
 } from "@/lib/imports";
+import StageSelect from "@/components/stage-select";
 import { readDocument } from "@/lib/read-document";
 export default function ImportExpenses({
   existing,
+  stages,
   onSave,
 }: {
   existing: Row[];
+  stages: Row[];
   onSave: (rows: Row[]) => Promise<void>;
 }) {
   const [mode, setMode] = useState<"bill" | "statement">("bill");
@@ -184,6 +187,12 @@ export default function ImportExpenses({
                   correct it.
                 </p>
               )}
+              <StageSelect
+                stages={stages}
+                value={r.stageId}
+                onChange={(value) => patch(r.id, { stageId: value })}
+                disabled={busy}
+              />
               <label>
                 Money movement
                 <select

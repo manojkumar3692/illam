@@ -56,6 +56,15 @@ import { fields, labels, type Field } from "@/lib/fields";
 import { authClient } from "@/lib/auth/client";
 import AppInstall from "@/components/app-install";
 import QuickMoneyForm from "@/components/quick-money-form";
+import StageSelect from "@/components/stage-select";
+import {
+  linkedSections,
+  stageName,
+  stageSummary,
+  stageLinkCount,
+  removeStage,
+  starterStageNames,
+} from "@/lib/stages";
 import ImportExpenses from "@/components/import-expenses";
 import QuickSiteForm from "@/components/quick-site-form";
 type View = "overview" | Section | "settings" | "more";
@@ -131,6 +140,7 @@ export default function Illam() {
   const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<"demo" | "cloud">("demo");
   const [view, setView] = useState<View>("overview");
+  const [stageFilter, setStageFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [quickAdd, setQuickAdd] = useState(false);
@@ -181,13 +191,19 @@ export default function Illam() {
           setUser(r.user);
           setAuthOpen(false);
           await loadCloud();
-        } else if (!auth && new URLSearchParams(window.location.search).get("demo") !== "1") {
+        } else if (
+          !auth &&
+          new URLSearchParams(window.location.search).get("demo") !== "1"
+        ) {
           window.location.replace("/");
           return;
         }
         setReady(true);
       })
-      .catch((e) => { setError(e.message); setReady(true); });
+      .catch((e) => {
+        setError(e.message);
+        setReady(true);
+      });
   }, []);
   useEffect(() => {
     if (!notice) return;
@@ -294,6 +310,7 @@ export default function Illam() {
   }
   function navigate(next: View) {
     setView(next);
+    setStageFilter("all");
     setSearch("");
     window.location.hash = next;
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -301,7 +318,15 @@ export default function Illam() {
   function add(section: Section, defaults?: Partial<Row>) {
     setError("");
     setQuickAdd(false);
-    setModal({ section, defaults });
+    setModal({
+      section,
+      defaults: {
+        ...(section !== "stages" && stageFilter !== "all"
+          ? { stageId: stageFilter }
+          : {}),
+        ...defaults,
+      },
+    });
   }
   async function rowSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -319,6 +344,8 @@ export default function Illam() {
             ? Number(values.get(field.key) || 0)
             : String(values.get(field.key) || "").trim();
       });
+      if (modal.section !== "stages")
+        row.stageId = String(values.get("stageId") || "");
       if (
         !modal.row &&
         (modal.section === "payments" || modal.section === "decisions")
@@ -349,7 +376,9 @@ export default function Illam() {
         throw new Error("Add a document link or upload a file.");
       const rows = modal.row
         ? project[modal.section].map((r) => (r.id === row.id ? row : r))
-        : [row, ...project[modal.section]];
+        : modal.section === "stages"
+          ? [...project.stages, row]
+          : [row, ...project[modal.section]];
       await save({ ...project, [modal.section]: rows });
       setModal(null);
     });
@@ -536,10 +565,14 @@ export default function Illam() {
     );
   }
   function sectionContent(section: Section) {
-    const rows = project[section].filter((r) =>
-      Object.values(r).some((v) =>
-        String(v).toLowerCase().includes(search.toLowerCase()),
-      ),
+    const rows = project[section].filter(
+      (r) =>
+        (section === "stages" ||
+          stageFilter === "all" ||
+          (r.stageId || "") === stageFilter) &&
+        Object.values(r).some((v) =>
+          String(v).toLowerCase().includes(search.toLowerCase()),
+        ),
     );
     if (!rows.length)
       return (
@@ -578,6 +611,9 @@ export default function Illam() {
                     <strong>{r.party}</strong>
                     <small>
                       {r.category} · {dateLabel(String(r.date))}
+                      <span className="stage-label">
+                        {stageName(project, r.stageId)}
+                      </span>
                     </small>
                   </span>
                   <span
@@ -600,6 +636,12 @@ export default function Illam() {
                 </summary>
                 <div className="entry-details">
                   <p>{r.note || "No note added"}</p>
+                  {r.previousStageTitle && (
+                    <small>
+                      Previously assigned to {r.previousStageTitle} (stage
+                      removed)
+                    </small>
+                  )}
                   <small>
                     {r.kind === "Contribution"
                       ? "To " + r.to
@@ -639,13 +681,88 @@ export default function Illam() {
                   </Badge>
                 </div>
                 <p>
-                  {r.owner} · Target {r.due}
+                  {r.owner || "No responsible person yet"}
+                  {r.due ? ` · Target ${r.due}` : ""}
                 </p>
                 <div className="progress">
                   <span style={{ width: r.progress + "%" }} />
                 </div>
                 <small>{r.note}</small>
-                <small>Uncommitted estimate: {fmt(Number(r.remaining))}</small>
+                <small>
+                  Uncommitted estimate: {fmt(Number(r.remaining || 0))}
+                </small>
+                <div className="stage-totals">
+                  <span>
+                    Spent
+                    <strong>{fmt(stageSummary(project, r.id).spent)}</strong>
+                  </span>
+                  <span>
+                    Money in
+                    <strong>{fmt(stageSummary(project, r.id).funds)}</strong>
+                  </span>
+                  <span>
+                    Payments due
+                    <strong>{fmt(stageSummary(project, r.id).due)}</strong>
+                  </span>
+                </div>
+                {Number(r.budget) > 0 && (
+                  <p className="stage-budget">
+                    Budget {fmt(Number(r.budget))} ·{" "}
+                    {stageSummary(project, r.id).spent > Number(r.budget)
+                      ? `${fmt(stageSummary(project, r.id).spent - Number(r.budget))} over budget`
+                      : `${fmt(Number(r.budget) - stageSummary(project, r.id).spent)} left before unpaid bills`}
+                  </p>
+                )}
+                <button
+                  className="text-link"
+                  onClick={() => {
+                    navigate("transactions");
+                    setStageFilter(r.id);
+                  }}
+                >
+                  View stage money <ArrowRight size={15} />
+                </button>
+                {editable && (
+                  <div className="stage-controls">
+                    <button
+                      className="text-link"
+                      onClick={() => add("transactions", { stageId: r.id })}
+                    >
+                      + Expense / money in
+                    </button>
+                    <button
+                      className="text-link"
+                      onClick={() => add("updates", { stageId: r.id })}
+                    >
+                      + Site update
+                    </button>
+                    <button
+                      className="text-link"
+                      disabled={
+                        project.stages.findIndex(
+                          (stage) => stage.id === r.id,
+                        ) === 0 || busy
+                      }
+                      onClick={() =>
+                        run(async () => {
+                          const ordered = [...project.stages];
+                          const index = ordered.findIndex(
+                            (stage) => stage.id === r.id,
+                          );
+                          if (index > 0) {
+                            [ordered[index - 1], ordered[index]] = [
+                              ordered[index],
+                              ordered[index - 1],
+                            ];
+                            await save({ ...project, stages: ordered });
+                          }
+                        })
+                      }
+                    >
+                      Move earlier
+                    </button>
+                  </div>
+                )}
               </div>
               {recordActions(section, r)}
             </article>
@@ -667,6 +784,9 @@ export default function Illam() {
                   </Badge>
                 </div>
                 <h3>{r.title}</h3>
+                <span className="stage-label">
+                  {stageName(project, r.stageId)}
+                </span>
                 <p>{r.vendor}</p>
                 <div className="stock-number">
                   {left.toLocaleString()} <small>{r.unit} available</small>
@@ -728,6 +848,7 @@ export default function Illam() {
               {recordActions(section, r)}
             </div>
             <h3>{r.title}</h3>
+            <span className="stage-label">{stageName(project, r.stageId)}</span>
             {r.party && <p>{r.party}</p>}
             {r.amount !== undefined && (
               <div className="card-amount">{fmt(Number(r.amount))}</div>
@@ -988,7 +1109,7 @@ export default function Illam() {
                   {v === "updates"
                     ? "Site diary"
                     : v === "stages"
-                      ? "Work plan"
+                      ? "Stages"
                       : "Materials"}
                 </button>
               ))}
@@ -1307,7 +1428,10 @@ export default function Illam() {
                           ? run(async () => {
                               const result = await authClient.signOut();
                               if (result.error)
-                                throw new Error(result.error.message || "Could not sign out. Please try again.");
+                                throw new Error(
+                                  result.error.message ||
+                                    "Could not sign out. Please try again.",
+                                );
                               window.location.replace("/");
                             })
                           : setAuthOpen(true)
@@ -1442,6 +1566,82 @@ export default function Illam() {
                         </span>
                         <ChevronRight size={18} />
                       </button>
+                    )}
+                    {view === "stages" && (
+                      <div className="stage-guide">
+                        <h3>Plan the way you build</h3>
+                        <p>
+                          Create the stages your home needs. Names, dates,
+                          progress and budgets can be changed anytime.
+                        </p>
+                        {editable && (
+                          <div className="stage-presets">
+                            {starterStageNames
+                              .filter(
+                                (name) =>
+                                  !project.stages.some(
+                                    (s) =>
+                                      String(s.title).toLowerCase() ===
+                                      name.toLowerCase(),
+                                  ),
+                              )
+                              .map((name) => (
+                                <button
+                                  className="button"
+                                  key={name}
+                                  onClick={() => add("stages", { title: name })}
+                                >
+                                  <Plus size={14} />
+                                  {name}
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                        <small>
+                          Stage money-in is tagged funding, not a separate bank
+                          balance. Transfers never count as spending. Stage
+                          budgets do not change the whole-home budget.
+                        </small>
+                      </div>
+                    )}
+                    {linkedSections.includes(view as Section) && (
+                      <label className="stage-filter">
+                        Filter by stage
+                        <select
+                          value={stageFilter}
+                          onChange={(e) => setStageFilter(e.target.value)}
+                        >
+                          <option value="all">All stages</option>
+                          <option value="">Whole project / not assigned</option>
+                          {project.stages.map((stage) => (
+                            <option key={stage.id} value={stage.id}>
+                              {stage.title}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                    {view === "transactions" && stageFilter !== "all" && (
+                      <div className="stage-totals">
+                        <span>
+                          Spent
+                          <strong>
+                            {fmt(stageSummary(project, stageFilter).spent)}
+                          </strong>
+                        </span>
+                        <span>
+                          Money in
+                          <strong>
+                            {fmt(stageSummary(project, stageFilter).funds)}
+                          </strong>
+                        </span>
+                        <span>
+                          Payments due
+                          <strong>
+                            {fmt(stageSummary(project, stageFilter).due)}
+                          </strong>
+                        </span>
+                      </div>
                     )}
                     {sectionContent(view)}
                   </>
@@ -1825,6 +2025,7 @@ export default function Illam() {
         >
           <ImportExpenses
             existing={project.transactions}
+            stages={project.stages}
             onSave={async (rows) => {
               await save({
                 ...project,
@@ -1870,7 +2071,9 @@ export default function Illam() {
                         modal.row?.[field.key] ??
                         modal.defaults?.[field.key] ??
                         (field.type === "date"
-                          ? day()
+                          ? modal.section === "stages"
+                            ? ""
+                            : day()
                           : field.key === "account" || field.key === "from"
                             ? "House fund"
                             : field.key === "version"
@@ -1882,6 +2085,12 @@ export default function Illam() {
                     />
                   ))}
                 </>
+              )}
+              {modal.section !== "stages" && (
+                <StageSelect
+                  stages={project.stages}
+                  value={modal.row?.stageId ?? modal.defaults?.stageId}
+                />
               )}
               {(modal.section === "documents" ||
                 modal.section === "updates") && (
@@ -2157,31 +2366,51 @@ export default function Illam() {
         </Modal>
       )}
       {deleteRow && (
-        <Modal title="Delete this entry?" close={() => setDeleteRow(null)}>
+        <Modal
+          title={
+            deleteRow.section === "stages"
+              ? "Are you sure you want to delete this stage?"
+              : "Delete this entry?"
+          }
+          close={() => setDeleteRow(null)}
+        >
           <p>
             This removes “{deleteRow.row.title || deleteRow.row.party}” from
-            this project and updates related totals. This cannot be undone.
+            this project. This cannot be undone.
           </p>
+          {deleteRow.section === "stages" && (
+            <p>
+              {stageLinkCount(project, deleteRow.row.id)} linked records will
+              move to “Whole project / not assigned”. Expenses, money received,
+              bills and site records are kept. Overall money totals stay the
+              same; this stage’s budget and remaining estimate are removed from
+              the plan.
+            </p>
+          )}
           <div className="modal-footer">
             <button className="button" onClick={() => setDeleteRow(null)}>
-              Keep entry
+              {deleteRow.section === "stages" ? "Keep stage" : "Keep entry"}
             </button>
             <button
               disabled={busy}
               className="button destructive"
               onClick={() =>
                 run(async () => {
-                  await save({
-                    ...project,
-                    [deleteRow.section]: project[deleteRow.section].filter(
-                      (r) => r.id !== deleteRow.row.id,
-                    ),
-                  });
+                  await save(
+                    deleteRow.section === "stages"
+                      ? removeStage(project, deleteRow.row.id)
+                      : {
+                          ...project,
+                          [deleteRow.section]: project[
+                            deleteRow.section
+                          ].filter((r) => r.id !== deleteRow.row.id),
+                        },
+                  );
                   setDeleteRow(null);
                 })
               }
             >
-              Delete entry
+              {deleteRow.section === "stages" ? "Delete stage" : "Delete entry"}
             </button>
           </div>
         </Modal>

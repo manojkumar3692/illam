@@ -102,3 +102,11 @@ Recognition is a review aid, not universal bank-format recognition. CSV supports
 No draft is selected by default. Users correct entries, choose expense/funds-added/transfer, confirm review and save. Exact date/amount/movement/party matches are flagged as likely duplicates and blocked until corrected or unselected. Unpaid bills should not be recorded as paid expenses. The existing project revision check protects cloud saves against concurrent edits.
 
 Browser acceptance checks used synthetic files only: CSV debit/credit import through saved demo ledger; text PDF bill total/date; photo-bill OCR total/date; 390px mobile layout. Vani Home is separately provisioned with zero financial entries and no sample progress or stock. The owner's account was verified using the email code supplied during setup.
+
+## Construction stages
+
+Site → Stages supports named stages, optional owner/target date/budget, progress and remaining estimates. Suggested names open a prefilled form; no floors or costs are automatically inserted into real projects. Stages append in build order and can be moved earlier. Stage budgets are planning limits and do not modify the overall home budget.
+
+All record forms and import-review entries support a stage or Whole project. Links use stable stage IDs, so renaming preserves associations. Stage filters cover the ledger and other record lists. Stage cards show spent, tagged funds and pending/approved unpaid requests; transfers are excluded from expense and funds totals. Tagged funds are not a ring-fenced account balance. Payment settlement copies the request's stage to its expense.
+
+Stage deletion requires confirmation with a linked-record count. It removes the stage's plan/budget/remaining estimate, moves linked records to Whole project, and retains the former name as metadata. Money records and overall balances are preserved. Existing untagged data stays valid. The server rejects unknown stage IDs and negative budgets.
