@@ -180,19 +180,19 @@ export default function TeamWorkspace({
           </p>
         )}
         {form ? (
-          <section className="panel team-form">
+          <section className={"panel team-form " + (["Payment", "Reimbursement"].includes(form) ? "payment-request-form" : "")}>
             <button
               className="text-link"
               disabled={busy}
               onClick={() => setForm("")}
             >
-              ← Back
+              {form === "Payment" || form === "Reimbursement" ? "← Back to requests" : "← Back"}
             </button>
             <h1>
               {form === "Payment"
                 ? "Request a payment"
                 : form === "Reimbursement"
-                  ? "I paid — claim reimbursement"
+                  ? "Claim reimbursement"
                   : form === "daily"
                     ? "Today’s site note"
                     : "Record today’s attendance"}
@@ -205,51 +205,33 @@ export default function TeamWorkspace({
                       ? "Ask the owner to pay for work or materials."
                       : "Record money you already spent personally. The owner reviews it before reimbursing you."}
                   </p>
-                  <div className="quick-presets">
-                    {quickItems.map((item) => (
-                      <button
-                        type="button"
-                        key={item.title}
-                        onClick={(e) => {
+                  <label className="request-amount">
+                    {form === "Reimbursement" ? "Amount you paid" : "Amount requested"}
+                    <span className="request-amount-field">
+                      <span>{project.currency === "INR" ? "₹" : project.currency}</span>
+                      <input name="amount" aria-label={"Amount in " + project.currency} type="number" min="0.01" step="0.01" inputMode="decimal" required placeholder="0.00" />
+                    </span>
+                  </label>
+                  <label>
+                    What is this for?
+                    <input name="title" required maxLength={150} defaultValue={preset} placeholder="e.g. CCTV camera for the site" />
+                  </label>
+                  <details className="request-shortcuts">
+                    <summary>Choose a common site expense</summary>
+                    <div className="quick-presets">
+                      {quickItems.map((item) => (
+                        <button type="button" key={item.title} onClick={(e) => {
                           setPreset(item.title);
                           const f = e.currentTarget.form;
                           if (f) {
-                            (
-                              f.elements.namedItem("title") as HTMLInputElement
-                            ).value = item.title;
-                            (
-                              f.elements.namedItem(
-                                "category",
-                              ) as HTMLSelectElement
-                            ).value = item.category;
+                            (f.elements.namedItem("title") as HTMLInputElement).value = item.title;
+                            (f.elements.namedItem("category") as HTMLSelectElement).value = item.category;
                           }
-                        }}
-                      >
-                        {item.title}
-                      </button>
-                    ))}
-                  </div>
-                  <label>
-                    What is this for?
-                    <input
-                      name="title"
-                      required
-                      maxLength={150}
-                      defaultValue={preset}
-                      placeholder="e.g. Temporary shed materials"
-                    />
-                  </label>
-                  <label>
-                    Amount ({project.currency})
-                    <input
-                      name="amount"
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      inputMode="decimal"
-                      required
-                    />
-                  </label>
+                        }}>{item.title}</button>
+                      ))}
+                    </div>
+                  </details>
+                  <div className="request-details-grid">
                   <label>
                     Category
                     <select
@@ -293,14 +275,11 @@ export default function TeamWorkspace({
                       defaultValue={day()}
                     />
                   </label>
-                  <label>
-                    Bill / proof (optional)
-                    <input
-                      name="file"
-                      type="file"
-                      accept="application/pdf,image/png,image/jpeg,image/webp"
-                    />
-                    <small>PDF or photo, up to 3 MB.</small>
+                  </div>
+                  <label className="request-attachment">
+                    <span>Attach a bill or photo <small>Optional</small></span>
+                    <input name="file" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" />
+                    <small>PDF, JPG, PNG or WebP · up to 3 MB</small>
                   </label>
                 </>
               )}
@@ -334,8 +313,11 @@ export default function TeamWorkspace({
                   required={form === "daily"}
                   maxLength={form === "attendance" ? 1000 : 3000}
                   rows={3}
+                  placeholder={form === "Payment" || form === "Reimbursement" ? "Anything the owner should know?" : undefined}
                 />
               </label>
+              <div className={form === "Payment" || form === "Reimbursement" ? "request-submit" : ""}>
+              {(form === "Payment" || form === "Reimbursement") && <p>Only you and the owner can see this request.</p>}
               <button className="button primary full" disabled={busy}>
                 {busy
                   ? "Saving…"
@@ -343,6 +325,7 @@ export default function TeamWorkspace({
                     ? "Send to owner"
                     : "Save"}
               </button>
+              </div>
             </form>
           </section>
         ) : (
