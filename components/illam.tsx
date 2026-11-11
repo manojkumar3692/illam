@@ -1229,13 +1229,9 @@ export default function Illam() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <button
-          className="wordmark"
-          onClick={() => navigate("overview")}
-          aria-label="ILLAM home"
-        >
+        <a href="/" className="wordmark" aria-label="ILLAM homepage">
           illam<span>•</span>
-        </button>
+        </a>
         <button
           className="home-switch"
           onClick={() =>
@@ -1264,6 +1260,9 @@ export default function Illam() {
         <div className="content">
           {mode === "demo" && (
             <div className="demo-banner">
+              <a href="/" className="demo-back-link">
+                <ArrowLeft size={16} /> Back to homepage
+              </a>
               <span>Trying a sample home</span>
               <button
                 onClick={() =>

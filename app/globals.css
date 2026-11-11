@@ -2842,3 +2842,22 @@ summary::-webkit-details-marker {
     padding: 9px 13px;
   }
 }
+
+.demo-banner {
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.demo-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 540px) {
+  .demo-back-link {
+    flex-basis: 100%;
+  }
+}
