@@ -133,3 +133,19 @@ Attendance is one record per person per India site-calendar day. Workers self-re
 Home now includes stage setup, People & access and Attendance & daily notes shortcuts. Expense and claim forms include Temporary shed, EB/electricity connection, water load and other common categories. The isometric house graphic changes with the average recorded stage progress; it is illustrative, not a reconstruction of actual drawings or measured construction completion.
 
 Verification includes role-redaction tests, attachment authorization, authenticated claim attribution, scoped attendance, review/paid invariants, and actual route-handler tests with isolated auth/database mocks. Browser checks use synthetic local data and a temporary role-preview route removed before deployment. Real invited-account acceptance remains a useful next check when the owner adds the first teammate.
+
+## Automatic deployments
+
+The GitHub repository `manojkumar3692/illam` is connected to the existing Vercel project `illam`.
+
+- Pushes and merges to `main` trigger a production build for https://illam-nine.vercel.app.
+- Other branches and pull requests use Vercel preview deployments.
+- Run `npm test` and `npm run build` before pushing changes to `main`.
+- Production database and authentication secrets stay in Vercel environment settings; never commit `.env.local`.
+- A failed build does not replace the last successful production deployment.
+
+```sh
+git add <changed-files>
+git commit -m "Describe the change"
+git push origin main
+```
