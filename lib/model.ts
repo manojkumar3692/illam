@@ -26,6 +26,9 @@ export type Project = {
   documents: Row[];
   cameras: Row[];
   attendance?: Row[];
+  materialRequests?: Row[];
+  materialMovements?: Row[];
+  materialSuggestions?: Row[];
   archivedPayments?: Row[];
   archivedTransactions?: Row[];
   history?: Row[];

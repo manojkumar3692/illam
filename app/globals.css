@@ -2459,3 +2459,121 @@ summary::-webkit-details-marker {
   min-height: 44px;
   padding: 10px 0;
 }
+
+.material-workspace {
+  min-width: 0;
+}
+.material-workspace .section-heading {
+  margin-top: 12px;
+}
+.material-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+.material-summary span {
+  padding: 8px 12px;
+  background: #eeeee4;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.material-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+.material-tabs .button {
+  flex: 1;
+  min-width: 0;
+}
+.material-search {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+  font-size: 13px;
+}
+.material-search input {
+  min-width: 0;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 16px;
+}
+.material-card {
+  padding: 20px;
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+}
+.material-card h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.material-card .spread {
+  gap: 10px;
+  align-items: flex-start;
+}
+.material-card .badge {
+  flex-shrink: 0;
+}
+.material-quantity {
+  display: block;
+  font-size: 28px;
+  letter-spacing: -0.5px;
+  margin-top: 16px;
+}
+.material-quantity small {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.material-card .team-actions {
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.material-card .team-actions .button {
+  min-height: 44px;
+  flex: 1;
+}
+.material-order {
+  display: block;
+  margin: 8px 0;
+  color: var(--muted);
+}
+.material-warning {
+  padding: 16px;
+  border: 1px solid #e0cf9b;
+  border-radius: 12px;
+  background: #faf3df;
+  font-size: 13px;
+}
+.material-alert-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 14px;
+  border: 1px solid #dbd8b8;
+  border-radius: 12px;
+  background: #f4f1df;
+  margin: 12px 0 20px;
+  font-size: 13px;
+}
+.material-workspace .team-form .quick-presets {
+  flex-wrap: wrap;
+}
+@media (max-width: 430px) {
+  .team-nav > button {
+    min-width: 0;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .team-nav > button span {
+    font-size: 10px;
+  }
+  .material-card {
+    padding: 16px;
+  }
+}

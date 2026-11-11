@@ -56,6 +56,8 @@ import { fields, labels, type Field } from "@/lib/fields";
 import { authClient } from "@/lib/auth/client";
 import AppInstall from "@/components/app-install";
 import QuickMoneyForm from "@/components/quick-money-form";
+import MaterialWorkspace from "@/components/material-workspace";
+import { materialStock, materialAlerts, materialStatus } from "@/lib/materials";
 import TeamWorkspace from "@/components/team-workspace";
 import ProjectMessages from "@/components/project-messages";
 import FinancialHistory from "@/components/financial-history";
@@ -330,6 +332,11 @@ export default function Illam() {
     window.scrollTo({ top: 0, behavior: "instant" });
   }
   function add(section: Section, defaults?: Partial<Row>) {
+    if (section === "materials" && mode === "cloud") {
+      setQuickAdd(false);
+      navigate("materials");
+      return;
+    }
     setError("");
     setQuickAdd(false);
     setModal({
@@ -692,6 +699,17 @@ export default function Illam() {
     );
   }
   function sectionContent(section: Section) {
+    if (section === "materials" && mode === "cloud" && active)
+      return (
+        <MaterialWorkspace
+          project={project}
+          projectId={active.id}
+          revision={active.revision}
+          role={active.role}
+          onRefresh={() => loadCloud(active.id)}
+        />
+      );
+
     const rows = project[section].filter(
       (r) =>
         (section === "stages" ||
@@ -1123,8 +1141,12 @@ export default function Illam() {
         ? "home"
         : "more";
   const lowStock = project.materials.filter(
-    (r) => Number(r.received) - Number(r.used) <= Number(r.reorder),
+    (r) =>
+      !r.mergedInto && materialStock(project, r.id) <= Number(r.reorder || 0),
   );
+  const materialPending = (project.materialRequests || []).filter(
+    (r) => r.status === "Requested",
+  ).length;
   const actionTitle: Record<Section, string> = {
     transactions: "Add expense",
     payments: "Request payment",
@@ -1324,6 +1346,7 @@ export default function Illam() {
             ) : view !== "more" &&
               view !== "settings" &&
               view !== "messages" &&
+              !(view === "materials" && mode === "cloud") &&
               editable ? (
               <button
                 className="add-button"
@@ -1416,6 +1439,14 @@ export default function Illam() {
                     </button>
                     <button
                       className="button"
+                      onClick={() => navigate("materials")}
+                    >
+                      Materials ·{" "}
+                      {materialAlerts(project).filter((a) => a.low).length} low
+                      stock
+                    </button>
+                    <button
+                      className="button"
                       onClick={() => navigate("messages")}
                     >
                       Messages
@@ -1501,7 +1532,9 @@ export default function Illam() {
                     <div className="section-heading">
                       <h2>
                         Needs your attention{" "}
-                        <span>{pending + lowStock.length}</span>
+                        <span>
+                          {pending + lowStock.length + materialPending}
+                        </span>
                       </h2>
                     </div>
                     <div className="action-list">
@@ -1548,6 +1581,14 @@ export default function Illam() {
                             <ChevronRight size={17} />
                           </button>
                         ))}
+                      {materialPending > 0 && (
+                        <button
+                          className="action-row"
+                          onClick={() => navigate("materials")}
+                        >
+                          {materialPending} material requests need approval →
+                        </button>
+                      )}
                       {lowStock.slice(0, 1).map((r) => (
                         <button
                           className="action-row"
@@ -1560,8 +1601,8 @@ export default function Illam() {
                           <span className="grow">
                             <strong>{r.title}</strong>
                             <small>
-                              {Number(r.received) - Number(r.used)} {r.unit}{" "}
-                              left · Running low
+                              {materialStock(project, r.id)} {r.unit} left ·
+                              Running low
                             </small>
                           </span>
                           <ChevronRight size={17} />
@@ -1811,26 +1852,28 @@ export default function Illam() {
                         </details>
                       </>
                     )}
-                    <div className="section-toolbar">
-                      <div className="search-box">
-                        <Search size={19} />
-                        <input
-                          aria-label="Search entries"
-                          placeholder="Find an entry…"
-                          value={search}
-                          onChange={(e) => setSearch(e.target.value)}
-                        />
-                        {search && (
-                          <button
-                            className="icon-button"
-                            aria-label="Clear search"
-                            onClick={() => setSearch("")}
-                          >
-                            <X size={18} />
-                          </button>
-                        )}
+                    {view !== "materials" && (
+                      <div className="section-toolbar">
+                        <div className="search-box">
+                          <Search size={19} />
+                          <input
+                            aria-label="Search entries"
+                            placeholder="Find an entry…"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                          />
+                          {search && (
+                            <button
+                              className="icon-button"
+                              aria-label="Clear search"
+                              onClick={() => setSearch("")}
+                            >
+                              <X size={18} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                     {view === "cameras" && (
                       <p className="page-description">
                         Add a secure viewing link from your camera provider.
@@ -1896,23 +1939,26 @@ export default function Illam() {
                         </small>
                       </div>
                     )}
-                    {linkedSections.includes(view as Section) && (
-                      <label className="stage-filter">
-                        Filter by stage
-                        <select
-                          value={stageFilter}
-                          onChange={(e) => setStageFilter(e.target.value)}
-                        >
-                          <option value="all">All stages</option>
-                          <option value="">Whole project / not assigned</option>
-                          {project.stages.map((stage) => (
-                            <option key={stage.id} value={stage.id}>
-                              {stage.title}
+                    {view !== "materials" &&
+                      linkedSections.includes(view as Section) && (
+                        <label className="stage-filter">
+                          Filter by stage
+                          <select
+                            value={stageFilter}
+                            onChange={(e) => setStageFilter(e.target.value)}
+                          >
+                            <option value="all">All stages</option>
+                            <option value="">
+                              Whole project / not assigned
                             </option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
+                            {project.stages.map((stage) => (
+                              <option key={stage.id} value={stage.id}>
+                                {stage.title}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
                     {view === "transactions" && stageFilter !== "all" && (
                       <div className="stage-totals">
                         <span>

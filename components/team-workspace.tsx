@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { day, money, type Project } from "@/lib/model";
 import { canSubmit } from "@/lib/access";
+import MaterialWorkspace from "./material-workspace";
+import { materialAlerts, materialStatus } from "@/lib/materials";
 import ProjectMessages from "./project-messages";
 import StageSelect from "./stage-select";
 import BuildView from "./build-view";
@@ -187,6 +189,26 @@ export default function TeamWorkspace({
             {notice}
           </p>
         )}
+        {!form && canWork && tab !== "materials" && (
+          <button
+            className="material-alert-button"
+            onClick={() => setTab("materials")}
+          >
+            Materials · {materialAlerts(project).filter((a) => a.low).length}{" "}
+            low / out of stock ·{" "}
+            {
+              (project.materialRequests || []).filter(
+                (r) =>
+                  r.expectedDate &&
+                  String(r.expectedDate) < day() &&
+                  !["Received", "Rejected", "Cancelled"].includes(
+                    materialStatus(project, r),
+                  ),
+              ).length
+            }{" "}
+            overdue deliveries →
+          </button>
+        )}
         {form ? (
           <section
             className={
@@ -346,7 +368,6 @@ export default function TeamWorkspace({
                     <select name="noteType">
                       <option>Site note</option>
                       <option>Blocker</option>
-                      <option>Material request</option>
                     </select>
                   </label>
                   <label>
@@ -502,6 +523,15 @@ export default function TeamWorkspace({
                 </button>
               </>
             )}
+            {canWork && tab === "materials" && (
+              <MaterialWorkspace
+                project={project}
+                projectId={active.id}
+                revision={active.revision}
+                role={active.role}
+                onRefresh={onRefresh}
+              />
+            )}
             {canWork && tab === "messages" && (
               <ProjectMessages
                 key={active.id}
@@ -629,6 +659,10 @@ export default function TeamWorkspace({
             {canWork && tab === "notes" && (
               <>
                 <h1>Site notes & needs</h1>
+                <p className="field-hint">
+                  For cement, bricks or other stock requests, use Materials so
+                  quantities and deliveries stay linked.
+                </p>
                 <button
                   className="button primary"
                   onClick={() => setForm("daily")}
@@ -666,6 +700,7 @@ export default function TeamWorkspace({
           ...(canWork
             ? [
                 { id: "requests", label: "Requests", Icon: ClipboardList },
+                { id: "materials", label: "Materials", Icon: ClipboardList },
                 { id: "attendance", label: "Attendance", Icon: Users },
                 { id: "notes", label: "Site notes", Icon: NotebookPen },
                 { id: "messages", label: "Messages", Icon: NotebookPen },

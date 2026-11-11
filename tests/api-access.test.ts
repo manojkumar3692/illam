@@ -361,3 +361,91 @@ test("Message read is scoped to authenticated participants; send uses server sen
   assert.ok(!sent.includes("forged-owner"));
   assert.equal((await api.POST(request("other-worker"))).status, 403);
 });
+
+test("Material action API stamps actor, keeps finances intact and rejects stale revisions", async () => {
+  const api = await route("app/api/materials/route.ts");
+  reset("contractor");
+  state.data.materials = [
+    {
+      id: "cement",
+      title: "Cement",
+      unit: "bags",
+      received: 0,
+      used: 0,
+      reorder: 20,
+    },
+  ];
+  const entry = {
+    action: "request",
+    id: "request-1",
+    materialId: "cement",
+    quantity: 10,
+    neededBy: day(),
+    status: "Approved",
+    person: "Forged",
+    by: "owner",
+  };
+  const stale = await api.POST(
+    request("materials", { projectId: pid, revision: 8, entry }),
+  );
+  assert.equal(stale.status, 409);
+  const result = await api.POST(
+    request("materials", { projectId: pid, revision: 0, entry }),
+  );
+  assert.equal(result.status, 200);
+  const saved = JSON.parse(state.saved);
+  assert.equal(saved.materialRequests[0].status, "Requested");
+  assert.equal(saved.materialRequests[0].by, "member");
+  assert.equal(saved.materialRequests[0].person, "Member");
+  assert.deepEqual(saved.transactions, state.data.transactions);
+});
+test("Material API rejects family and worker approvals; generic project PUT cannot overwrite stock history", async () => {
+  const api = await route("app/api/materials/route.ts");
+  reset("family");
+  assert.equal(
+    (
+      await api.POST(
+        request("materials", {
+          projectId: pid,
+          revision: 0,
+          entry: { action: "threshold", materialId: "cement", reorder: 5 },
+        }),
+      )
+    ).status,
+    403,
+  );
+  reset("contractor");
+  assert.equal(
+    (
+      await api.POST(
+        request("materials", {
+          projectId: pid,
+          revision: 0,
+          entry: { action: "review", requestId: "r", status: "Approved" },
+        }),
+      )
+    ).status,
+    400,
+  );
+  assert.equal(state.updates, 0);
+  reset("owner");
+  state.data.materialMovements = [
+    {
+      id: "delivery",
+      materialId: "cement",
+      kind: "Delivery",
+      quantity: 10,
+      delta: 10,
+    },
+  ];
+  const projects = await route("app/api/projects/route.ts");
+  const result = await projects.PUT(
+    request(
+      "projects",
+      { id: pid, revision: 0, data: { ...state.data, materialMovements: [] } },
+      "PUT",
+    ),
+  );
+  assert.equal(result.status, 400);
+  assert.equal(state.updates, 0);
+});

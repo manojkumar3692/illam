@@ -58,6 +58,30 @@ export async function PUT(req: Request) {
     const [previous] = await q`select data from illam_projects where id=${id}`;
     let data;
     try {
+      for (const key of [
+        "materials",
+        "materialRequests",
+        "materialMovements",
+        "materialSuggestions",
+      ] as const) {
+        const prior = (previous.data[key] || []).map(
+          (r: Record<string, string | number>) =>
+            r.stageId && !parsed.stages.some((s) => s.id === r.stageId)
+              ? {
+                  ...r,
+                  stageId: "",
+                  previousStageTitle:
+                    previous.data.stages.find(
+                      (s: { id: string }) => s.id === r.stageId,
+                    )?.title || "Whole project",
+                }
+              : r,
+        );
+        if (JSON.stringify(prior) !== JSON.stringify(parsed[key] || []))
+          throw new Error(
+            "Use Materials to update stock and requests; recorded movements are kept in history.",
+          );
+      }
       data = stampReviews(
         previous.data,
         parsed,

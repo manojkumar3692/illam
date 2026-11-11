@@ -60,5 +60,9 @@ export function removeStage(project: Project, id: string): Project {
   next.attendance = (project.attendance || []).map((r) =>
     r.stageId === id ? { ...r, stageId: "", previousStageTitle: title } : r,
   );
+  for (const section of ["materialRequests", "materialMovements"] as const)
+    next[section] = (project[section] || []).map((r) =>
+      r.stageId === id ? { ...r, stageId: "", previousStageTitle: title } : r,
+    );
   return next;
 }

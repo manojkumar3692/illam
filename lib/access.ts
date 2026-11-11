@@ -95,6 +95,73 @@ export function visibleProject(
             ]),
           )
       : [],
+    materials: canSubmit(role)
+      ? p.materials
+          .filter((r) => !r.mergedInto)
+          .map((r) =>
+            pick(r, [
+              "title",
+              "spec",
+              "unit",
+              "received",
+              "used",
+              "reorder",
+              "stockCheckedOn",
+            ]),
+          )
+      : [],
+    materialRequests: canSubmit(role)
+      ? (p.materialRequests || []).map((r) =>
+          pick(r, [
+            "materialId",
+            "quantity",
+            "stageId",
+            "neededBy",
+            "note",
+            "duplicateReason",
+            "status",
+            "person",
+            "at",
+            "reviewNote",
+            "supplier",
+            "expectedDate",
+            "fileId",
+            "fileName",
+          ]),
+        )
+      : [],
+    materialMovements: canSubmit(role)
+      ? (p.materialMovements || []).map((r) =>
+          pick(r, [
+            "materialId",
+            "requestId",
+            "kind",
+            "quantity",
+            "delta",
+            "date",
+            "stageId",
+            "note",
+            "person",
+            "at",
+            "fileId",
+            "fileName",
+          ]),
+        )
+      : [],
+    materialSuggestions: canSubmit(role)
+      ? (p.materialSuggestions || []).map((r) =>
+          pick(r, [
+            "title",
+            "spec",
+            "unit",
+            "note",
+            "person",
+            "at",
+            "status",
+            "materialId",
+          ]),
+        )
+      : [],
     attendance: canSubmit(role)
       ? (p.attendance || [])
           .filter((r) => r.userId === userId)
@@ -125,7 +192,10 @@ export function canReadFile(
   if (role === "owner") return true;
   if (canSubmit(role) && uploaderId === userId) return true;
   const visible = visibleProject(p, role, userId);
-  return [...visible.payments, ...visible.updates].some(
-    (r) => r.fileId === fileId,
-  );
+  return [
+    ...visible.payments,
+    ...visible.updates,
+    ...(visible.materialMovements || []),
+    ...(visible.materialRequests || []),
+  ].some((r) => r.fileId === fileId);
 }
