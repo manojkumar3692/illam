@@ -290,3 +290,74 @@ test("Actual owner PUT returns server-stamped approval data", async () => {
   assert.ok(result.data.payments[0].reviewedAt);
   assert.equal(state.updates, 1);
 });
+
+test("Messages reject non-workers and cross-origin writes", async () => {
+  const api = await route("app/api/messages/route.ts");
+  reset("family");
+  const get = await api.GET(
+    new Request("https://illam.test/api/messages?projectId=" + pid),
+  );
+  assert.equal(get.status, 403);
+  const post = await api.POST(
+    new Request("https://illam.test/api/messages", {
+      method: "POST",
+      headers: {
+        origin: "https://evil.test",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        projectId: pid,
+        recipientId: "owner",
+        body: "Hi",
+      }),
+    }),
+  );
+  assert.equal(post.status, 403);
+});
+test("Message read is scoped to authenticated participants; send uses server sender and atomic membership check", async () => {
+  const api = await route("app/api/messages/route.ts");
+  reset("architect");
+  const original = state.query;
+  let sent: any[] = [];
+  let reads: any[] = [];
+  state.query = async (strings: TemplateStringsArray, ...values: any[]) => {
+    const q = strings.join("?");
+    if (q.startsWith("select p.owner_id"))
+      return [{ id: "owner", name: "Owner", role: "owner" }];
+    if (q.startsWith("select id,sender_id")) {
+      reads = values;
+      assert.match(q, /sender_id=\? or recipient_id=\?/);
+      return [];
+    }
+    if (q.startsWith("insert into illam_messages")) {
+      sent = values;
+      assert.match(q, /join illam_members/);
+      assert.match(q, /p.owner_id=\? and m.user_id=\?/);
+      return values.includes("other-worker") ? [] : [{ id: fid }];
+    }
+    return original(strings, ...values);
+  };
+  const get = await api.GET(
+    new Request("https://illam.test/api/messages?projectId=" + pid),
+  );
+  assert.equal(get.status, 200);
+  assert.deepEqual(reads, [pid, "member", "member"]);
+  const request = (recipientId: string) =>
+    new Request("https://illam.test/api/messages", {
+      method: "POST",
+      headers: {
+        origin: "https://illam.test",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        projectId: pid,
+        recipientId,
+        senderId: "forged-owner",
+        body: "Question about tomorrow",
+      }),
+    });
+  assert.equal((await api.POST(request("owner"))).status, 201);
+  assert.ok(sent.includes("member"));
+  assert.ok(!sent.includes("forged-owner"));
+  assert.equal((await api.POST(request("other-worker"))).status, 403);
+});

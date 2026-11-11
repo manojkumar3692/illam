@@ -58,7 +58,13 @@ export async function PUT(req: Request) {
     const [previous] = await q`select data from illam_projects where id=${id}`;
     let data;
     try {
-      data = stampReviews(previous.data, parsed, user.id);
+      data = stampReviews(
+        previous.data,
+        parsed,
+        user.id,
+        undefined,
+        z.string().max(1000).default("").parse(body.removalReason),
+      );
     } catch (e) {
       throw new HttpError(
         400,

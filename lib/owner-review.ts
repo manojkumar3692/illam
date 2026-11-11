@@ -1,5 +1,5 @@
 import type { Project } from "./model";
-export function stampReviews(
+function validateReviews(
   previous: Project,
   next: Project,
   ownerId: string,
@@ -83,4 +83,119 @@ export function stampReviews(
       throw new Error("A settled payment expense cannot be removed or edited.");
   }
   return { ...next, payments };
+}
+
+// Keep removals outside active totals while retaining immutable server-stamped records.
+export function stampReviews(
+  previous: Project,
+  proposed: Project,
+  ownerId: string,
+  now = new Date().toISOString(),
+  removalReason = "",
+): Project {
+  const removedPayments = new Set(
+    previous.payments
+      .filter((r) => !proposed.payments.some((n) => n.id === r.id))
+      .map((r) => r.id),
+  );
+  for (const t of previous.transactions) {
+    if (t.paymentId && !proposed.transactions.some((n) => n.id === t.id))
+      removedPayments.add(String(t.paymentId));
+  }
+  const next = {
+    ...proposed,
+    payments: proposed.payments.filter((r) => !removedPayments.has(r.id)),
+    transactions: proposed.transactions.filter(
+      (r) => !removedPayments.has(String(r.paymentId || "")),
+    ),
+  };
+  const removedTransactions = previous.transactions.filter(
+    (r) => !next.transactions.some((n) => n.id === r.id),
+  );
+  if (
+    (removedPayments.size || removedTransactions.length) &&
+    !removalReason.trim()
+  )
+    throw new Error("Add a reason for removing this financial entry.");
+  const archivedIds = new Set(
+    [
+      ...(previous.archivedPayments || []),
+      ...(previous.archivedTransactions || []),
+    ].map((r) => r.id),
+  );
+  if (
+    [...next.payments, ...next.transactions].some((r) => archivedIds.has(r.id))
+  )
+    throw new Error(
+      "A removed entry cannot be overwritten. Create a new entry instead.",
+    );
+  const checked = validateReviews(
+    {
+      ...previous,
+      payments: previous.payments.filter((r) => !removedPayments.has(r.id)),
+      transactions: previous.transactions.filter(
+        (r) => !removedTransactions.some((t) => t.id === r.id),
+      ),
+    },
+    next,
+    ownerId,
+    now,
+  );
+  // Clients cannot supply or rewrite the archive or event history.
+  const archive = (r: Project["payments"][number]) => ({
+    ...r,
+    deletedAt: now,
+    deletedBy: ownerId,
+    deletionReason: removalReason.trim(),
+  });
+  const history = [...(previous.history || [])];
+  for (const section of ["payments", "transactions", "attendance"] as const) {
+    const oldRows = previous[section] || [],
+      newRows = checked[section] || [];
+    for (const id of new Set([...oldRows, ...newRows].map((r) => r.id))) {
+      const old = oldRows.find((r) => r.id === id),
+        current = newRows.find((r) => r.id === id);
+      if (JSON.stringify(old) === JSON.stringify(current)) continue;
+      history.push({
+        id: crypto.randomUUID(),
+        section,
+        recordId: id,
+        at: now,
+        actor: ownerId,
+        action: !current
+          ? "Removed"
+          : !old
+            ? "Created"
+            : current.status !== old.status
+              ? String(current.status)
+              : "Updated",
+        title: String(
+          current?.title ||
+            old?.title ||
+            current?.party ||
+            old?.party ||
+            current?.person ||
+            old?.person ||
+            "Entry",
+        ),
+        reason: !current ? removalReason.trim() : "",
+        before: JSON.stringify(old || null),
+        after: JSON.stringify(current || null),
+      });
+    }
+  }
+  return {
+    ...checked,
+    history,
+    archivedPayments: [
+      ...(previous.archivedPayments || []),
+      ...previous.payments
+        .filter((r) => removedPayments.has(r.id))
+        .map(archive),
+    ],
+    archivedTransactions: [
+      ...(previous.archivedTransactions || []),
+      ...removedTransactions.map(archive),
+    ],
+  };
 }

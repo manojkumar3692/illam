@@ -57,6 +57,8 @@ import { authClient } from "@/lib/auth/client";
 import AppInstall from "@/components/app-install";
 import QuickMoneyForm from "@/components/quick-money-form";
 import TeamWorkspace from "@/components/team-workspace";
+import ProjectMessages from "@/components/project-messages";
+import FinancialHistory from "@/components/financial-history";
 import OwnerAttendance from "@/components/owner-attendance";
 import BuildView from "@/components/build-view";
 import StageSelect from "@/components/stage-select";
@@ -70,7 +72,7 @@ import {
 } from "@/lib/stages";
 import ImportExpenses from "@/components/import-expenses";
 import QuickSiteForm from "@/components/quick-site-form";
-type View = "overview" | Section | "settings" | "more";
+type View = "overview" | Section | "settings" | "more" | "messages";
 type CloudProject = {
   id: string;
   name: string;
@@ -91,6 +93,7 @@ const icons = {
   cameras: Video,
   settings: Settings,
   more: MoreHorizontal,
+  messages: FileText,
 };
 function dateLabel(value: string) {
   if (!value) return "No date";
@@ -170,6 +173,7 @@ export default function Illam() {
   const [chooseProject, setChooseProject] = useState(false);
   const [active, setActive] = useState<CloudProject | null>(null);
   const [members, setMembers] = useState<Row[]>([]);
+  const [removalReason, setRemovalReason] = useState("");
   const [deleteRow, setDeleteRow] = useState<{
     section: Section;
     row: Row;
@@ -242,6 +246,7 @@ export default function Illam() {
       "cameras",
       "settings",
       "more",
+      "messages",
     ];
     const onHash = () => {
       const next = location.hash.slice(1) as View;
@@ -277,7 +282,7 @@ export default function Illam() {
       setMembers(m.members);
     } else setMembers([]);
   }
-  async function save(next: Project) {
+  async function save(next: Project, removalReason = "") {
     if (!editable) throw new Error("This project is read-only.");
     if (mode === "cloud" && !navigator.onLine)
       throw new Error(
@@ -291,6 +296,7 @@ export default function Illam() {
         id: active.id,
         revision: active.revision,
         data: next,
+        removalReason,
       });
       next = r.data || next;
       setActive({ ...active, revision: r.revision, data: next });
@@ -491,7 +497,9 @@ export default function Illam() {
         ? "Project settings"
         : view === "more"
           ? "More"
-          : labels[view];
+          : view === "messages"
+            ? "Messages"
+            : labels[view];
   const pending =
     project.payments.filter((r) => r.status === "Pending").length +
     project.decisions.filter((r) => r.status === "Pending").length;
@@ -518,12 +526,15 @@ export default function Illam() {
           <button
             className="icon-button danger"
             aria-label={"Delete " + String(row.title || row.party)}
-            onClick={() => setDeleteRow({ section, row })}
+            onClick={() => {
+              setRemovalReason("");
+              setDeleteRow({ section, row });
+            }}
             disabled={
               busy ||
-              (section === "payments" && row.status === "Paid") ||
-              !!row.paymentId ||
-              !!row.submittedBy
+              (section !== "payments" &&
+                section !== "transactions" &&
+                !!row.submittedBy)
             }
           >
             <Trash2 size={15} />
@@ -553,13 +564,19 @@ export default function Illam() {
     return (
       <section className="panel settings-panel">
         <h2>Project access</h2>
-        <p>Ask your architect or contractor to sign up at illam-nine.vercel.app with their own email and password, then verify their email. Add that same email below. When they log in, they can choose from the homes they have access to.</p>
+        <p>
+          Ask your architect or contractor to sign up at illam-nine.vercel.app
+          with their own email and password, then verify their email. Add that
+          same email below. When they log in, they can choose from the homes
+          they have access to.
+        </p>
         <p>
           People listed in your contacts do not automatically receive access.
           Everyone needs their own verified ILLAM account. Only the owner can
-          see funds, budgets and the expense ledger. Contractors and architects
-          see only their own requests; family and friends see shared progress.
-          One email can belong to several homes, with a separate role in each.
+          see reserves, fund balances and incoming money. Architects can see
+          project spending and stages. Contractors and architects see only their
+          own payment requests; family and friends see shared progress. One
+          email can belong to several homes, with a separate role in each.
           Submit the same email again to change their role for this home.
         </p>
         {mode === "demo" ? (
@@ -1122,24 +1139,50 @@ export default function Illam() {
   if (mode === "cloud" && user && chooseProject)
     return (
       <div className="app-shell team-shell">
-        <header className="app-header"><a href="/" className="wordmark">illam<span>•</span></a></header>
+        <header className="app-header">
+          <a href="/" className="wordmark">
+            illam<span>•</span>
+          </a>
+        </header>
         <main className="content">
           <p className="eyebrow">{user.email}</p>
           <h1>Choose your project</h1>
-          <p>One account for all your homes. Your access is set separately by each project owner.</p>
-          {error && <p className="error-banner" role="alert">{error}</p>}
+          <p>
+            One account for all your homes. Your access is set separately by
+            each project owner.
+          </p>
+          {error && (
+            <p className="error-banner" role="alert">
+              {error}
+            </p>
+          )}
           <div className="card-grid">
             {projects.map((p) => (
-              <button key={p.id} className="item-card" disabled={busy} onClick={() => run(() => loadCloud(p.id))}>
-                <h2>{p.name}</h2><p>{p.role} access</p><span>Open project →</span>
+              <button
+                key={p.id}
+                className="item-card"
+                disabled={busy}
+                onClick={() => run(() => loadCloud(p.id))}
+              >
+                <h2>{p.name}</h2>
+                <p>{p.role} access</p>
+                <span>Open project →</span>
               </button>
             ))}
           </div>
-          <button className="button" disabled={busy} onClick={() => run(async () => {
-            const result = await authClient.signOut();
-            if (result.error) throw new Error(result.error.message);
-            window.location.replace("/");
-          })}>Sign out</button>
+          <button
+            className="button"
+            disabled={busy}
+            onClick={() =>
+              run(async () => {
+                const result = await authClient.signOut();
+                if (result.error) throw new Error(result.error.message);
+                window.location.replace("/");
+              })
+            }
+          >
+            Sign out
+          </button>
         </main>
       </div>
     );
@@ -1171,7 +1214,14 @@ export default function Illam() {
         >
           illam<span>•</span>
         </button>
-        <button className="home-switch" onClick={() => mode === "cloud" && projects.length > 1 ? setChooseProject(true) : navigate("settings")}>
+        <button
+          className="home-switch"
+          onClick={() =>
+            mode === "cloud" && projects.length > 1
+              ? setChooseProject(true)
+              : navigate("settings")
+          }
+        >
           <span>{project.name}</span>
           <ChevronDown size={16} />
         </button>
@@ -1271,7 +1321,10 @@ export default function Illam() {
                     ? "My home"
                     : "Ground zero"}
               </span>
-            ) : view !== "more" && view !== "settings" && editable ? (
+            ) : view !== "more" &&
+              view !== "settings" &&
+              view !== "messages" &&
+              editable ? (
               <button
                 className="add-button"
                 onClick={() => add(view as Section)}
@@ -1322,7 +1375,10 @@ export default function Illam() {
               <HardHat size={40} />
               <h2>Welcome to ILLAM.</h2>
               <p>
-                Joining as an architect, contractor, family member or friend? Ask the owner to add your verified email in People & access. Then refresh to see your project. You do not need to create a home to join one.
+                Joining as an architect, contractor, family member or friend?
+                Ask the owner to add your verified email in People & access.
+                Then refresh to see your project. You do not need to create a
+                home to join one.
               </p>
               <button
                 disabled={busy}
@@ -1357,6 +1413,12 @@ export default function Illam() {
                       onClick={() => navigate("updates")}
                     >
                       Attendance & daily notes
+                    </button>
+                    <button
+                      className="button"
+                      onClick={() => navigate("messages")}
+                    >
+                      Messages
                     </button>
                   </div>
                   <section
@@ -1580,6 +1642,7 @@ export default function Illam() {
                     {(
                       [
                         "people",
+                        "messages",
                         "documents",
                         "decisions",
                         "cameras",
@@ -1589,6 +1652,7 @@ export default function Illam() {
                       const Icon = icons[v];
                       const notes: Record<string, string> = {
                         people: "Contractor, architect & your team",
+                        messages: "Private conversations with your team",
                         documents: "Drawings, bills & agreements",
                         decisions: "Changes that need your approval",
                         cameras: "Open your site cameras",
@@ -1605,7 +1669,9 @@ export default function Illam() {
                             <strong>
                               {v === "settings"
                                 ? "Home settings"
-                                : labels[v as Section]}
+                                : v === "messages"
+                                  ? "Messages"
+                                  : labels[v as Section]}
                             </strong>
                             <small>{notes[v]}</small>
                           </span>
@@ -1681,7 +1747,8 @@ export default function Illam() {
               )}
               {view !== "overview" &&
                 view !== "settings" &&
-                view !== "more" && (
+                view !== "more" &&
+                view !== "messages" && (
                   <>
                     {view === "transactions" && (
                       <>
@@ -1880,8 +1947,9 @@ export default function Illam() {
                       <div className="info-note">
                         <p>
                           Contacts are your address book. To let someone sign
-                          in, grant a role in Project access. Only you see funds
-                          and the expense ledger.
+                          in, grant a role in Project access. Only you see
+                          reserves, fund balances and incoming money. Architects
+                          can see project spending.
                         </p>
                         <button
                           className="button"
@@ -1892,8 +1960,18 @@ export default function Illam() {
                       </div>
                     )}
                     {sectionContent(view)}
+                    {(view === "payments" || view === "transactions") && (
+                      <FinancialHistory project={project} />
+                    )}
                   </>
                 )}
+              {view === "messages" && active && user && (
+                <ProjectMessages
+                  key={active.id}
+                  projectId={active.id}
+                  userId={user.id}
+                />
+              )}
               {view === "settings" && (
                 <div className="settings-grid">
                   <section className="panel settings-panel">
@@ -2672,14 +2750,30 @@ export default function Illam() {
           title={
             deleteRow.section === "stages"
               ? "Are you sure you want to delete this stage?"
-              : "Delete this entry?"
+              : ["payments", "transactions"].includes(deleteRow.section)
+                ? "Remove this financial entry?"
+                : "Delete this entry?"
           }
           close={() => setDeleteRow(null)}
         >
           <p>
-            This removes “{deleteRow.row.title || deleteRow.row.party}” from
-            this project. This cannot be undone.
+            This removes “{deleteRow.row.title || deleteRow.row.party}” from the
+            active list.{" "}
+            {["payments", "transactions"].includes(deleteRow.section)
+              ? "The original entry and removal reason stay in History. Any linked paid expense is also removed from active totals. This changes the records only; it does not reverse a bank payment."
+              : "This cannot be undone."}
           </p>
+          {["payments", "transactions"].includes(deleteRow.section) && (
+            <label>
+              Reason for removal
+              <textarea
+                value={removalReason}
+                onChange={(e) => setRemovalReason(e.target.value)}
+                maxLength={1000}
+                required
+              />
+            </label>
+          )}
           {deleteRow.section === "stages" && (
             <p>
               {stageLinkCount(project, deleteRow.row.id)} linked records will
@@ -2694,7 +2788,11 @@ export default function Illam() {
               {deleteRow.section === "stages" ? "Keep stage" : "Keep entry"}
             </button>
             <button
-              disabled={busy}
+              disabled={
+                busy ||
+                (["payments", "transactions"].includes(deleteRow.section) &&
+                  !removalReason.trim())
+              }
               className="button destructive"
               onClick={() =>
                 run(async () => {
@@ -2707,12 +2805,17 @@ export default function Illam() {
                             deleteRow.section
                           ].filter((r) => r.id !== deleteRow.row.id),
                         },
+                    removalReason,
                   );
                   setDeleteRow(null);
                 })
               }
             >
-              {deleteRow.section === "stages" ? "Delete stage" : "Delete entry"}
+              {deleteRow.section === "stages"
+                ? "Delete stage"
+                : ["payments", "transactions"].includes(deleteRow.section)
+                  ? "Remove & keep history"
+                  : "Delete entry"}
             </button>
           </div>
         </Modal>

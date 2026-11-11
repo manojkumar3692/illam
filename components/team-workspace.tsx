@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { day, money, type Project } from "@/lib/model";
 import { canSubmit } from "@/lib/access";
+import ProjectMessages from "./project-messages";
 import StageSelect from "./stage-select";
 import BuildView from "./build-view";
 import { quickItems } from "@/lib/quick-items";
@@ -32,7 +33,9 @@ export default function TeamWorkspace({
   onSwitch: (id: string) => Promise<void>;
   onLogout: () => Promise<void>;
 }) {
-  const [tab, setTab] = useState("home"),
+  const [tab, setTab] = useState(
+      active.role === "contractor" ? "attendance" : "home",
+    ),
     [form, setForm] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -99,6 +102,7 @@ export default function TeamWorkspace({
           action: "daily",
           title: String(values.get("title")),
           note: String(values.get("note")),
+          noteType: String(values.get("noteType") || "Site note"),
         };
       else
         entry = {
@@ -148,7 +152,7 @@ export default function TeamWorkspace({
             run(async () => {
               await onSwitch(e.target.value);
               setForm("");
-              setTab("home");
+              setTab(active.role === "contractor" ? "attendance" : "home");
             })
           }
         >
@@ -168,7 +172,11 @@ export default function TeamWorkspace({
       </header>
       <main className="content">
         <p className="eyebrow">{active.role} access</p>
-        {projects.length > 1 && <button className="button" disabled={busy} onClick={onChooseProjects}>All my projects ({projects.length})</button>}
+        {projects.length > 1 && (
+          <button className="button" disabled={busy} onClick={onChooseProjects}>
+            All my projects ({projects.length})
+          </button>
+        )}
         {error && (
           <p className="error-banner" role="alert">
             {error}
@@ -180,13 +188,22 @@ export default function TeamWorkspace({
           </p>
         )}
         {form ? (
-          <section className={"panel team-form " + (["Payment", "Reimbursement"].includes(form) ? "payment-request-form" : "")}>
+          <section
+            className={
+              "panel team-form " +
+              (["Payment", "Reimbursement"].includes(form)
+                ? "payment-request-form"
+                : "")
+            }
+          >
             <button
               className="text-link"
               disabled={busy}
               onClick={() => setForm("")}
             >
-              {form === "Payment" || form === "Reimbursement" ? "← Back to requests" : "← Back"}
+              {form === "Payment" || form === "Reimbursement"
+                ? "← Back to requests"
+                : "← Back"}
             </button>
             <h1>
               {form === "Payment"
@@ -206,93 +223,142 @@ export default function TeamWorkspace({
                       : "Record money you already spent personally. The owner reviews it before reimbursing you."}
                   </p>
                   <label className="request-amount">
-                    {form === "Reimbursement" ? "Amount you paid" : "Amount requested"}
+                    {form === "Reimbursement"
+                      ? "Amount you paid"
+                      : "Amount requested"}
                     <span className="request-amount-field">
-                      <span>{project.currency === "INR" ? "₹" : project.currency}</span>
-                      <input name="amount" aria-label={"Amount in " + project.currency} type="number" min="0.01" step="0.01" inputMode="decimal" required placeholder="0.00" />
+                      <span>
+                        {project.currency === "INR" ? "₹" : project.currency}
+                      </span>
+                      <input
+                        name="amount"
+                        aria-label={"Amount in " + project.currency}
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        inputMode="decimal"
+                        required
+                        placeholder="0.00"
+                      />
                     </span>
                   </label>
                   <label>
                     What is this for?
-                    <input name="title" required maxLength={150} defaultValue={preset} placeholder="e.g. CCTV camera for the site" />
+                    <input
+                      name="title"
+                      required
+                      maxLength={150}
+                      defaultValue={preset}
+                      placeholder="e.g. CCTV camera for the site"
+                    />
                   </label>
                   <details className="request-shortcuts">
                     <summary>Choose a common site expense</summary>
                     <div className="quick-presets">
                       {quickItems.map((item) => (
-                        <button type="button" key={item.title} onClick={(e) => {
-                          setPreset(item.title);
-                          const f = e.currentTarget.form;
-                          if (f) {
-                            (f.elements.namedItem("title") as HTMLInputElement).value = item.title;
-                            (f.elements.namedItem("category") as HTMLSelectElement).value = item.category;
-                          }
-                        }}>{item.title}</button>
+                        <button
+                          type="button"
+                          key={item.title}
+                          onClick={(e) => {
+                            setPreset(item.title);
+                            const f = e.currentTarget.form;
+                            if (f) {
+                              (
+                                f.elements.namedItem(
+                                  "title",
+                                ) as HTMLInputElement
+                              ).value = item.title;
+                              (
+                                f.elements.namedItem(
+                                  "category",
+                                ) as HTMLSelectElement
+                              ).value = item.category;
+                            }
+                          }}
+                        >
+                          {item.title}
+                        </button>
                       ))}
                     </div>
                   </details>
                   <div className="request-details-grid">
-                  <label>
-                    Category
-                    <select
-                      name="category"
-                      defaultValue={
-                        quickItems.find((p) => p.title === preset)?.category ||
-                        "Materials"
-                      }
-                    >
-                      {[
-                        "Materials",
-                        "Labour",
-                        "Contractor",
-                        "Design",
-                        "Permits",
-                        "Equipment",
-                        "Other",
-                      ].map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
-                  </label>
-                  {form === "Reimbursement" && (
                     <label>
-                      When did you pay?
+                      Category
+                      <select
+                        name="category"
+                        defaultValue={
+                          quickItems.find((p) => p.title === preset)
+                            ?.category || "Materials"
+                        }
+                      >
+                        {[
+                          "Materials",
+                          "Labour",
+                          "Contractor",
+                          "Design",
+                          "Permits",
+                          "Equipment",
+                          "Other",
+                        ].map((c) => (
+                          <option key={c}>{c}</option>
+                        ))}
+                      </select>
+                    </label>
+                    {form === "Reimbursement" && (
+                      <label>
+                        When did you pay?
+                        <input
+                          name="spentDate"
+                          type="date"
+                          required
+                          max={day()}
+                          defaultValue={day()}
+                        />
+                      </label>
+                    )}
+                    <label>
+                      Needed by
                       <input
-                        name="spentDate"
+                        name="due"
                         type="date"
                         required
-                        max={day()}
                         defaultValue={day()}
                       />
                     </label>
-                  )}
-                  <label>
-                    Needed by
-                    <input
-                      name="due"
-                      type="date"
-                      required
-                      defaultValue={day()}
-                    />
-                  </label>
                   </div>
                   <label className="request-attachment">
-                    <span>Attach a bill or photo <small>Optional</small></span>
-                    <input name="file" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" />
+                    <span>
+                      Attach a bill or photo <small>Optional</small>
+                    </span>
+                    <input
+                      name="file"
+                      type="file"
+                      accept="application/pdf,image/png,image/jpeg,image/webp"
+                    />
                     <small>PDF, JPG, PNG or WebP · up to 3 MB</small>
                   </label>
                 </>
               )}
               {form === "daily" && (
-                <label>
-                  What happened?
-                  <input
-                    name="title"
-                    required
-                    maxLength={150}
-                    placeholder="e.g. Foundation inspection completed"
-                  />
-                </label>
+                <>
+                  <label>
+                    Type
+                    <select name="noteType">
+                      <option>Site note</option>
+                      <option>Blocker</option>
+                      <option>Material request</option>
+                    </select>
+                  </label>
+                  <label>
+                    What happened?
+                    <input
+                      name="title"
+                      required
+                      maxLength={150}
+                      placeholder="e.g. Cement needed before tomorrow"
+                    />
+                  </label>
+                </>
               )}
               {form === "attendance" && (
                 <label>
@@ -313,27 +379,79 @@ export default function TeamWorkspace({
                   required={form === "daily"}
                   maxLength={form === "attendance" ? 1000 : 3000}
                   rows={3}
-                  placeholder={form === "Payment" || form === "Reimbursement" ? "Anything the owner should know?" : undefined}
+                  placeholder={
+                    form === "Payment" || form === "Reimbursement"
+                      ? "Anything the owner should know?"
+                      : undefined
+                  }
                 />
               </label>
-              <div className={form === "Payment" || form === "Reimbursement" ? "request-submit" : ""}>
-              {(form === "Payment" || form === "Reimbursement") && <p>Only you and the owner can see this request.</p>}
-              <button className="button primary full" disabled={busy}>
-                {busy
-                  ? "Saving…"
-                  : form === "Payment" || form === "Reimbursement"
-                    ? "Send to owner"
-                    : "Save"}
-              </button>
+              <div
+                className={
+                  form === "Payment" || form === "Reimbursement"
+                    ? "request-submit"
+                    : ""
+                }
+              >
+                {(form === "Payment" || form === "Reimbursement") && (
+                  <p>Only you and the owner can see this request.</p>
+                )}
+                <button className="button primary full" disabled={busy}>
+                  {busy
+                    ? "Saving…"
+                    : form === "Payment" || form === "Reimbursement"
+                      ? "Send to owner"
+                      : "Save"}
+                </button>
               </div>
             </form>
           </section>
         ) : (
           <>
-            {tab === "home" && (
+            {tab === "home" && active.role !== "contractor" && (
               <>
                 <h1>{project.name}</h1>
                 <BuildView stages={project.stages} />
+                {active.role === "architect" && (
+                  <section className="architect-spending">
+                    <p className="eyebrow">Project spending</p>
+                    <strong>
+                      {money(
+                        project.transactions.reduce(
+                          (sum, r) => sum + Number(r.amount || 0),
+                          0,
+                        ),
+                        project.currency,
+                      )}
+                    </strong>
+                    <p className="field-hint">
+                      Recorded expenses after removals. Unpaid requests are not
+                      included.
+                    </p>
+                    <details>
+                      <summary>
+                        View expenses ({project.transactions.length})
+                      </summary>
+                      {!project.transactions.length && (
+                        <p>No expenses recorded yet.</p>
+                      )}
+                      {project.transactions.map((r) => (
+                        <article className="team-record" key={r.id}>
+                          <div className="spread">
+                            <span>{r.party || r.category || "Expense"}</span>
+                            <b>{money(Number(r.amount), project.currency)}</b>
+                          </div>
+                          <small>
+                            {r.date} · {r.category} ·{" "}
+                            {project.stages.find((s) => s.id === r.stageId)
+                              ?.title || "Whole project"}
+                          </small>
+                        </article>
+                      ))}
+                    </details>
+                  </section>
+                )}
+
                 {!project.stages.length && (
                   <p>The owner hasn’t added stages yet.</p>
                 )}
@@ -376,13 +494,20 @@ export default function TeamWorkspace({
                   </p>
                 )}
                 <p className="field-hint">
-                  Project funds, budgets and the expense ledger are private to
-                  the owner.
+                  Owner reserves, fund balances, incoming money and account
+                  details are private to the owner.
                 </p>
                 <button className="button" onClick={() => run(onLogout)}>
                   <LogOut size={17} /> Sign out
                 </button>
               </>
+            )}
+            {canWork && tab === "messages" && (
+              <ProjectMessages
+                key={active.id}
+                projectId={active.id}
+                userId={userId}
+              />
             )}
             {canWork && tab === "requests" && (
               <>
@@ -421,6 +546,12 @@ export default function TeamWorkspace({
                     <h3>{r.title}</h3>
                     <strong>{money(Number(r.amount), project.currency)}</strong>
                     <p>{r.note}</p>
+                    {r.deletedAt && (
+                      <p>
+                        Removed by owner: {r.deletionReason}. Excluded from
+                        active totals.
+                      </p>
+                    )}
                     <small>Needed by {r.due}</small>
                     {r.spentDate && (
                       <small>Paid personally on {r.spentDate}</small>
@@ -497,12 +628,12 @@ export default function TeamWorkspace({
             )}
             {canWork && tab === "notes" && (
               <>
-                <h1>My daily notes</h1>
+                <h1>Site notes & needs</h1>
                 <button
                   className="button primary"
                   onClick={() => setForm("daily")}
                 >
-                  Add today’s note
+                  Add a note, blocker or material request
                 </button>
                 <p className="field-hint">
                   Private to you and the owner until the owner shares it with
@@ -521,15 +652,23 @@ export default function TeamWorkspace({
             )}
           </>
         )}
+        {active.role === "contractor" && (
+          <button className="text-link" onClick={() => run(onLogout)}>
+            Sign out
+          </button>
+        )}
       </main>
       <nav className="bottom-nav team-nav" aria-label="Team navigation">
         {[
-          { id: "home", label: "Progress", Icon: House },
+          ...(active.role !== "contractor"
+            ? [{ id: "home", label: "Progress", Icon: House }]
+            : []),
           ...(canWork
             ? [
                 { id: "requests", label: "Requests", Icon: ClipboardList },
                 { id: "attendance", label: "Attendance", Icon: Users },
-                { id: "notes", label: "Notes", Icon: NotebookPen },
+                { id: "notes", label: "Site notes", Icon: NotebookPen },
+                { id: "messages", label: "Messages", Icon: NotebookPen },
               ]
             : []),
         ].map(({ id, label, Icon }) => (

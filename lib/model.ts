@@ -26,6 +26,9 @@ export type Project = {
   documents: Row[];
   cameras: Row[];
   attendance?: Row[];
+  archivedPayments?: Row[];
+  archivedTransactions?: Row[];
+  history?: Row[];
 };
 export const day = () =>
   new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
@@ -109,7 +112,9 @@ export function settlePayment(p: Project, id: string): Project {
   return {
     ...p,
     payments: p.payments.map((r) =>
-      r.id === id ? { ...r, status: "Paid", paidAt: new Date().toISOString() } : r,
+      r.id === id
+        ? { ...r, status: "Paid", paidAt: new Date().toISOString() }
+        : r,
     ),
     transactions: [
       {

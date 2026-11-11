@@ -55,6 +55,25 @@ export async function POST(req: Request) {
         e instanceof Error ? e.message : "Invalid submission.",
       );
     }
+    next.history = [
+      ...(current.data.history || []),
+      {
+        id: crypto.randomUUID(),
+        section:
+          action.action === "request"
+            ? "payments"
+            : action.action === "daily"
+              ? "updates"
+              : "attendance",
+        recordId: "id" in action ? action.id : user.id,
+        actor: user.id,
+        at: new Date().toISOString(),
+        action: "Submitted",
+        title: "title" in action ? action.title : action.action,
+        before: "null",
+        after: JSON.stringify(action),
+      },
+    ];
     const rows =
       await q`with changed as (update illam_projects p set data=${JSON.stringify(next)}::jsonb,revision=p.revision+1,updated_at=now() where p.id=${id} and p.revision=${revision} and exists(select 1 from illam_members m where m.project_id=p.id and m.user_id=${user.id} and coalesce(m.access_role,case when m.role='editor' then 'contractor' else 'family' end) in ('contractor','architect')) returning p.id,p.revision), audited as (insert into illam_audit(project_id,user_id,action,revision) select id,${user.id},${"team." + action.action},revision from changed) select revision from changed`;
     if (!rows.length)

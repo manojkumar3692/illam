@@ -18,12 +18,32 @@ export default function OwnerAttendance({
   const people = [
     ...members
       .filter((r) => ["contractor", "architect"].includes(String(r.role)))
-      .map((r) => ({ id: r.id, name: String(r.email), role: String(r.role) })),
-    ...project.people.map((r) => ({
-      id: "contact:" + r.id,
-      name: String(r.title),
-      role: String(r.role),
-    })),
+      .map((r) => ({
+        id: r.id,
+        name: String(
+          r.name ||
+            project.people.find(
+              (p) =>
+                String(p.email).toLowerCase() === String(r.email).toLowerCase(),
+            )?.title ||
+            r.email,
+        ),
+        role: String(r.role),
+      })),
+    ...project.people
+      .filter(
+        (r) =>
+          !members.some(
+            (m) =>
+              r.email &&
+              String(m.email).toLowerCase() === String(r.email).toLowerCase(),
+          ),
+      )
+      .map((r) => ({
+        id: "contact:" + r.id,
+        name: String(r.title),
+        role: String(r.role),
+      })),
   ];
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -154,6 +174,26 @@ export default function OwnerAttendance({
           onChange={(e) => setDate(e.target.value)}
         />
       </label>
+      <div className="attendance-summary">
+        <span>
+          {
+            (project.attendance || []).filter(
+              (r) =>
+                r.date === date &&
+                ["On site", "Half day"].includes(String(r.status)),
+            ).length
+          }{" "}
+          on site
+        </span>
+        <span>
+          {
+            (project.attendance || []).filter(
+              (r) => r.date === date && r.confirmed !== "yes",
+            ).length
+          }{" "}
+          awaiting confirmation
+        </span>
+      </div>
       {!(project.attendance || []).some((r) => r.date === date) && (
         <p className="field-hint">
           No attendance recorded for this day. Missing entries are not assumed

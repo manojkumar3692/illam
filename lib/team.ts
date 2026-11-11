@@ -34,6 +34,9 @@ export const actionSchema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("daily"),
+    noteType: z
+      .enum(["Site note", "Blocker", "Material request"])
+      .default("Site note"),
     id: z.string().uuid(),
     title: z.string().trim().min(1).max(150),
     note: z.string().trim().min(1).max(3000),
@@ -89,7 +92,8 @@ export function applyTeamAction(
       updates: [
         {
           id: a.id,
-          title: a.title,
+          title:
+            a.noteType === "Site note" ? a.title : a.noteType + ": " + a.title,
           note: a.note,
           stageId: a.stageId,
           date: day(),

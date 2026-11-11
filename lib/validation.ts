@@ -21,6 +21,19 @@ export const projectSchema = z
     documents: z.array(row).max(5000),
     cameras: z.array(row).max(50),
     attendance: z.array(row).max(10000).default([]),
+    archivedPayments: z.array(row).max(10000).default([]),
+    archivedTransactions: z.array(row).max(10000).default([]),
+    history: z
+      .array(
+        z
+          .record(
+            z.string(),
+            z.union([z.string().max(50000), z.number().finite()]),
+          )
+          .and(z.object({ id: z.string() })),
+      )
+      .max(50000)
+      .default([]),
   })
   .superRefine((p, ctx) => {
     const visits = new Set<string>();

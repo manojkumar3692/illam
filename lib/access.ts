@@ -23,12 +23,30 @@ export function visibleProject(
     ...emptyProject(),
     name: p.name,
     currency: p.currency,
-    target: p.target,
-    stages: p.stages.map((s) => pick(s, ["title", "progress", "due"])),
+    target: role === "contractor" ? "" : p.target,
+    transactions:
+      role === "architect"
+        ? p.transactions
+            .filter((r) => r.kind === "Expense")
+            .map((r) =>
+              pick(r, [
+                "kind",
+                "amount",
+                "date",
+                "party",
+                "category",
+                "stageId",
+              ]),
+            )
+        : [],
+    stages: p.stages.map((s) =>
+      pick(s, role === "contractor" ? ["title"] : ["title", "progress", "due"]),
+    ),
     updates: p.updates
       .filter(
         (r) =>
-          r.shared === "yes" || (canSubmit(role) && r.submittedBy === userId),
+          (role !== "contractor" && r.shared === "yes") ||
+          (canSubmit(role) && r.submittedBy === userId),
       )
       .map((r) =>
         pick(r, [
@@ -43,7 +61,13 @@ export function visibleProject(
         ]),
       ),
     payments: canSubmit(role)
-      ? p.payments
+      ? [
+          ...p.payments,
+          ...(p.archivedPayments || []).map((r): Row => ({
+            ...r,
+            status: "Removed",
+          })),
+        ]
           .filter((r) => r.submittedBy === userId)
           .map((r) =>
             pick(r, [
@@ -66,6 +90,8 @@ export function visibleProject(
               "paidDate",
               "paymentReference",
               "submittedBy",
+              "deletedAt",
+              "deletionReason",
             ]),
           )
       : [],

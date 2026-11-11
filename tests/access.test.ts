@@ -85,7 +85,7 @@ test("Contractor and architect get own claims but never private finance, contact
     for (const secret of [
       "PRIVATE_",
       "987654",
-      "765432",
+      ...(role === "contractor" ? ["765432"] : []),
       "55555",
       "22222",
       "8999",
@@ -94,7 +94,7 @@ test("Contractor and architect get own claims but never private finance, contact
       assert.ok(!data.includes(secret), secret);
     assert.equal(v.payments.length, 1);
     assert.equal(v.payments[0].id, "mine");
-    assert.equal(v.transactions.length, 0);
+    assert.equal(v.transactions.length, role === "architect" ? 1 : 0);
     assert.equal(v.attendance?.length, 1);
   }
 });
