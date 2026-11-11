@@ -20,12 +20,14 @@ export default function TeamWorkspace({
   projects,
   onRefresh,
   onSwitch,
+  onChooseProjects,
   onLogout,
 }: {
   project: Project;
   active: { id: string; role: string; revision: number };
   userId: string;
-  projects: { id: string; name: string }[];
+  projects: { id: string; name: string; role: string }[];
+  onChooseProjects: () => void;
   onRefresh: () => Promise<void>;
   onSwitch: (id: string) => Promise<void>;
   onLogout: () => Promise<void>;
@@ -139,7 +141,7 @@ export default function TeamWorkspace({
           illam<span>•</span>
         </a>
         <select
-          aria-label="Switch home"
+          aria-label="Switch project"
           value={active.id}
           disabled={busy}
           onChange={(e) =>
@@ -152,7 +154,7 @@ export default function TeamWorkspace({
         >
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name}
+              {p.name} · {p.role}
             </option>
           ))}
         </select>
@@ -166,6 +168,7 @@ export default function TeamWorkspace({
       </header>
       <main className="content">
         <p className="eyebrow">{active.role} access</p>
+        {projects.length > 1 && <button className="button" disabled={busy} onClick={onChooseProjects}>All my projects ({projects.length})</button>}
         {error && (
           <p className="error-banner" role="alert">
             {error}

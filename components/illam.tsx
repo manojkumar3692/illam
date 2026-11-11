@@ -167,6 +167,7 @@ export default function Illam() {
   const [user, setUser] = useState<{ email: string; id: string } | null>(null);
   const [configured, setConfigured] = useState(false);
   const [projects, setProjects] = useState<CloudProject[]>([]);
+  const [chooseProject, setChooseProject] = useState(false);
   const [active, setActive] = useState<CloudProject | null>(null);
   const [members, setMembers] = useState<Row[]>([]);
   const [deleteRow, setDeleteRow] = useState<{
@@ -264,6 +265,7 @@ export default function Illam() {
   async function loadCloud(id?: string) {
     const result = await api("projects");
     setProjects(result.projects);
+    setChooseProject(!id && result.projects.length > 1);
     const current =
       result.projects.find((p: CloudProject) => p.id === id) ||
       result.projects[0];
@@ -551,12 +553,14 @@ export default function Illam() {
     return (
       <section className="panel settings-panel">
         <h2>Project access</h2>
+        <p>Ask your architect or contractor to sign up at illam-nine.vercel.app with their own email and password, then verify their email. Add that same email below. When they log in, they can choose from the homes they have access to.</p>
         <p>
           People listed in your contacts do not automatically receive access.
           Everyone needs their own verified ILLAM account. Only the owner can
           see funds, budgets and the expense ledger. Contractors and architects
           see only their own requests; family and friends see shared progress.
-          Submit the same email again to change a role.
+          One email can belong to several homes, with a separate role in each.
+          Submit the same email again to change their role for this home.
         </p>
         {mode === "demo" ? (
           <p>
@@ -611,7 +615,7 @@ export default function Illam() {
                     name="email"
                     type="email"
                     required
-                    placeholder="They must sign up first"
+                    placeholder="Their verified account email"
                   />
                 </label>
                 <label>
@@ -1115,6 +1119,30 @@ export default function Illam() {
     documents: "Add document",
     cameras: "Add camera",
   };
+  if (mode === "cloud" && user && chooseProject)
+    return (
+      <div className="app-shell team-shell">
+        <header className="app-header"><a href="/" className="wordmark">illam<span>•</span></a></header>
+        <main className="content">
+          <p className="eyebrow">{user.email}</p>
+          <h1>Choose your project</h1>
+          <p>One account for all your homes. Your access is set separately by each project owner.</p>
+          {error && <p className="error-banner" role="alert">{error}</p>}
+          <div className="card-grid">
+            {projects.map((p) => (
+              <button key={p.id} className="item-card" disabled={busy} onClick={() => run(() => loadCloud(p.id))}>
+                <h2>{p.name}</h2><p>{p.role} access</p><span>Open project →</span>
+              </button>
+            ))}
+          </div>
+          <button className="button" disabled={busy} onClick={() => run(async () => {
+            const result = await authClient.signOut();
+            if (result.error) throw new Error(result.error.message);
+            window.location.replace("/");
+          })}>Sign out</button>
+        </main>
+      </div>
+    );
   if (mode === "cloud" && active && active.role !== "owner" && user)
     return (
       <TeamWorkspace
@@ -1125,6 +1153,7 @@ export default function Illam() {
         projects={projects}
         onRefresh={() => loadCloud(active.id)}
         onSwitch={loadCloud}
+        onChooseProjects={() => setChooseProject(true)}
         onLogout={async () => {
           const result = await authClient.signOut();
           if (result.error) throw new Error(result.error.message);
@@ -1142,7 +1171,7 @@ export default function Illam() {
         >
           illam<span>•</span>
         </button>
-        <button className="home-switch" onClick={() => navigate("settings")}>
+        <button className="home-switch" onClick={() => mode === "cloud" && projects.length > 1 ? setChooseProject(true) : navigate("settings")}>
           <span>{project.name}</span>
           <ChevronDown size={16} />
         </button>
@@ -1291,16 +1320,16 @@ export default function Illam() {
           {mode === "cloud" && !active ? (
             <section className="welcome">
               <HardHat size={40} />
-              <h2>Let’s set up your home.</h2>
+              <h2>Welcome to ILLAM.</h2>
               <p>
-                Start with your budget. Add payments and site updates as you go.
+                Joining as an architect, contractor, family member or friend? Ask the owner to add your verified email in People & access. Then refresh to see your project. You do not need to create a home to join one.
               </p>
               <button
                 disabled={busy}
                 className="button primary"
                 onClick={newHome}
               >
-                <Plus size={20} /> Create my home
+                <Plus size={20} /> I’m the owner — create my home
               </button>
             </section>
           ) : (
