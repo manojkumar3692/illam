@@ -6,6 +6,7 @@ import {
   failure,
   HttpError,
 } from "@/lib/server";
+import { canReadFile } from "@/lib/access";
 export const dynamic = "force-dynamic";
 export async function GET(
   req: Request,
@@ -16,9 +17,13 @@ export async function GET(
       id = uuid((await params).id),
       q = sql();
     const [file] =
-      await q`select project_id,name,mime from illam_files where id=${id}`;
+      await q`select project_id,name,mime,uploader_id from illam_files where id=${id}`;
     if (!file) throw new HttpError(404, "File not found.");
-    await permission(file.project_id, user.id);
+    const access = await permission(file.project_id, user.id);
+    const [project] =
+      await q`select data from illam_projects where id=${file.project_id}`;
+    if (!canReadFile(project.data, access.role, user.id, id, file.uploader_id))
+      throw new HttpError(403, "This file is private.");
     const [blob] = await q`select data from illam_files where id=${id}`;
     return new Response(Buffer.from(blob.data, "base64"), {
       headers: {

@@ -39,9 +39,9 @@ export async function permission(
 ) {
   const q = sql();
   const rows =
-    await q`select p.id, case when p.owner_id=${userId} then 'owner' else m.role end as role from illam_projects p left join illam_members m on m.project_id=p.id and m.user_id=${userId} where p.id=${projectId} and (p.owner_id=${userId} or m.user_id=${userId})`;
+    await q`select p.id, case when p.owner_id=${userId} then 'owner' else coalesce(m.access_role, case when m.role='editor' then 'contractor' else 'family' end) end as role from illam_projects p left join illam_members m on m.project_id=p.id and m.user_id=${userId} where p.id=${projectId} and (p.owner_id=${userId} or m.user_id=${userId})`;
   const r = rows[0];
-  if (!r || (owner && r.role !== "owner") || (write && r.role === "viewer"))
+  if (!r || (owner && r.role !== "owner") || (write && !["owner", "contractor", "architect"].includes(r.role)))
     throw new HttpError(403, "You do not have access to this action.");
   return r;
 }

@@ -56,6 +56,9 @@ import { fields, labels, type Field } from "@/lib/fields";
 import { authClient } from "@/lib/auth/client";
 import AppInstall from "@/components/app-install";
 import QuickMoneyForm from "@/components/quick-money-form";
+import TeamWorkspace from "@/components/team-workspace";
+import OwnerAttendance from "@/components/owner-attendance";
+import BuildView from "@/components/build-view";
 import StageSelect from "@/components/stage-select";
 import {
   linkedSections,
@@ -142,6 +145,8 @@ export default function Illam() {
   const [view, setView] = useState<View>("overview");
   const [stageFilter, setStageFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [payRow, setPayRow] = useState<Row | null>(null);
+  const [reviewRow, setReviewRow] = useState<Row | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [quickAdd, setQuickAdd] = useState(false);
   const [online, setOnline] = useState(true);
@@ -170,7 +175,7 @@ export default function Illam() {
   } | null>(null);
   const fmt = (v: number) => money(v, project.currency);
   const f = finances(project);
-  const editable = mode === "demo" || (!!active && active.role !== "viewer");
+  const editable = mode === "demo" || (!!active && active.role === "owner");
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE);
@@ -265,7 +270,7 @@ export default function Illam() {
     setMode("cloud");
     setActive(current || null);
     setProject(current?.data || emptyProject());
-    if (current) {
+    if (current?.role === "owner") {
       const m = await api("members?projectId=" + current.id);
       setMembers(m.members);
     } else setMembers([]);
@@ -285,6 +290,7 @@ export default function Illam() {
         revision: active.revision,
         data: next,
       });
+      next = r.data || next;
       setActive({ ...active, revision: r.revision, data: next });
     }
     setProject(next);
@@ -344,6 +350,10 @@ export default function Illam() {
             ? Number(values.get(field.key) || 0)
             : String(values.get(field.key) || "").trim();
       });
+      if (modal.section === "updates")
+        row.shared = values.get("shared") === "yes" ? "yes" : "no";
+      if (modal.section === "payments")
+        row.requestType = String(values.get("requestType") || "Payment");
       if (modal.section !== "stages")
         row.stageId = String(values.get("stageId") || "");
       if (
@@ -497,7 +507,8 @@ export default function Illam() {
             disabled={
               busy ||
               (section === "payments" && row.status === "Paid") ||
-              !!row.paymentId
+              !!row.paymentId ||
+              !!row.submittedBy
             }
           >
             <Pencil size={15} />
@@ -509,7 +520,8 @@ export default function Illam() {
             disabled={
               busy ||
               (section === "payments" && row.status === "Paid") ||
-              !!row.paymentId
+              !!row.paymentId ||
+              !!row.submittedBy
             }
           >
             <Trash2 size={15} />
@@ -534,6 +546,100 @@ export default function Illam() {
         Open {row.fileId ? "file" : "link"} <ExternalLink size={14} />
       </a>
     ) : null;
+  }
+  function accessPanel() {
+    return (
+      <section className="panel settings-panel">
+        <h2>Project access</h2>
+        <p>
+          People listed in your contacts do not automatically receive access.
+          Everyone needs their own verified ILLAM account. Only the owner can
+          see funds, budgets and the expense ledger. Contractors and architects
+          see only their own requests; family and friends see shared progress.
+          Submit the same email again to change a role.
+        </p>
+        {mode === "demo" ? (
+          <p>
+            Sign in to grant contractor, architect, family or friend access.
+          </p>
+        ) : (
+          <>
+            {members.map((m) => (
+              <div className="member-row" key={m.id}>
+                <span>
+                  {m.email}
+                  <small>{m.role}</small>
+                </span>
+                {active?.role === "owner" && (
+                  <button
+                    className="icon-button"
+                    aria-label={"Remove access for " + m.email}
+                    onClick={() =>
+                      run(async () => {
+                        await api("members", "DELETE", {
+                          projectId: active.id,
+                          userId: m.id,
+                        });
+                        await loadCloud(active.id);
+                      })
+                    }
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+            {active?.role === "owner" && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const data = new FormData(e.currentTarget);
+                  run(async () => {
+                    await api("members", "POST", {
+                      projectId: active.id,
+                      email: String(data.get("email")),
+                      role: String(data.get("role")),
+                    });
+                    await loadCloud(active.id);
+                    setNotice("Project access updated.");
+                  });
+                }}
+              >
+                <label>
+                  Email
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    placeholder="They must sign up first"
+                  />
+                </label>
+                <label>
+                  Access
+                  <select name="role">
+                    <option value="contractor">
+                      Contractor — own requests, attendance & notes
+                    </option>
+                    <option value="architect">
+                      Architect — own requests, attendance & notes
+                    </option>
+                    <option value="family">
+                      Family — shared progress only
+                    </option>
+                    <option value="friend">
+                      Friend — shared progress only
+                    </option>
+                  </select>
+                </label>
+                <button disabled={busy} className="button">
+                  Grant access
+                </button>
+              </form>
+            )}
+          </>
+        )}
+      </section>
+    );
   }
   function paymentCard(row: Row) {
     return (
@@ -850,6 +956,56 @@ export default function Illam() {
             <h3>{r.title}</h3>
             <span className="stage-label">{stageName(project, r.stageId)}</span>
             {r.party && <p>{r.party}</p>}
+            {section === "payments" && (
+              <>
+                <Badge>{r.requestType || "Payment"}</Badge>
+                {r.submittedBy && (
+                  <small>
+                    Submitted by {r.party} ·{" "}
+                    {String(r.submittedAt || "").slice(0, 10)}
+                  </small>
+                )}
+                {r.spentDate && <small>Paid personally on {r.spentDate}</small>}
+                {r.reviewNote && <p>Review note: {r.reviewNote}</p>}
+                {r.paidAt && (
+                  <small>Marked paid {String(r.paidAt).slice(0, 10)}</small>
+                )}
+              </>
+            )}
+            {section === "updates" && (
+              <>
+                <p className="field-hint">
+                  {r.shared === "yes"
+                    ? "Shared with everyone in this home"
+                    : "Private to owner and author"}
+                </p>
+                {editable && (
+                  <button
+                    className="text-link"
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        await save({
+                          ...project,
+                          updates: project.updates.map((note) =>
+                            note.id === r.id
+                              ? {
+                                  ...note,
+                                  shared: note.shared === "yes" ? "no" : "yes",
+                                }
+                              : note,
+                          ),
+                        });
+                      })
+                    }
+                  >
+                    {r.shared === "yes"
+                      ? "Make private"
+                      : "Share note with everyone"}
+                  </button>
+                )}
+              </>
+            )}
             {r.amount !== undefined && (
               <div className="card-amount">{fmt(Number(r.amount))}</div>
             )}
@@ -897,7 +1053,11 @@ export default function Illam() {
                       <button
                         disabled={busy}
                         className="button small"
-                        onClick={() => status(section, r, "Rejected")}
+                        onClick={() =>
+                          section === "payments"
+                            ? setReviewRow(r)
+                            : status(section, r, "Rejected")
+                        }
                       >
                         Reject
                       </button>
@@ -907,11 +1067,7 @@ export default function Illam() {
                     <button
                       disabled={busy}
                       className="button primary small"
-                      onClick={() =>
-                        run(async () => {
-                          await save(settlePayment(project, r.id));
-                        })
-                      }
+                      onClick={() => setPayRow(r)}
                     >
                       Record as paid <ArrowRight size={15} />
                     </button>
@@ -959,6 +1115,23 @@ export default function Illam() {
     documents: "Add document",
     cameras: "Add camera",
   };
+  if (mode === "cloud" && active && active.role !== "owner" && user)
+    return (
+      <TeamWorkspace
+        key={active.id}
+        project={project}
+        active={active}
+        userId={user.id}
+        projects={projects}
+        onRefresh={() => loadCloud(active.id)}
+        onSwitch={loadCloud}
+        onLogout={async () => {
+          const result = await authClient.signOut();
+          if (result.error) throw new Error(result.error.message);
+          window.location.replace("/");
+        }}
+      />
+    );
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -1134,6 +1307,29 @@ export default function Illam() {
             <>
               {view === "overview" && (
                 <>
+                  <BuildView stages={project.stages} />
+                  <div className="home-setup-actions">
+                    <button
+                      className="button"
+                      onClick={() => navigate("stages")}
+                    >
+                      {project.stages.length
+                        ? "Manage construction stages"
+                        : "1. Set up your construction stages"}
+                    </button>
+                    <button
+                      className="button"
+                      onClick={() => navigate("people")}
+                    >
+                      People & access
+                    </button>
+                    <button
+                      className="button"
+                      onClick={() => navigate("updates")}
+                    >
+                      Attendance & daily notes
+                    </button>
+                  </div>
                   <section
                     className="balance-block"
                     aria-label="Construction funds"
@@ -1643,6 +1839,29 @@ export default function Illam() {
                         </span>
                       </div>
                     )}
+                    {view === "updates" && (
+                      <OwnerAttendance
+                        project={project}
+                        members={members}
+                        onSave={save}
+                      />
+                    )}
+                    {view === "people" && accessPanel()}
+                    {view === "people" && (
+                      <div className="info-note">
+                        <p>
+                          Contacts are your address book. To let someone sign
+                          in, grant a role in Project access. Only you see funds
+                          and the expense ledger.
+                        </p>
+                        <button
+                          className="button"
+                          onClick={() => navigate("settings")}
+                        >
+                          Manage project access
+                        </button>
+                      </div>
+                    )}
                     {sectionContent(view)}
                   </>
                 )}
@@ -1802,88 +2021,7 @@ export default function Illam() {
                         </button>
                       )}
                     </section>
-                    <section className="panel settings-panel">
-                      <h2>Project access</h2>
-                      <p>
-                        People listed in your contacts do not automatically
-                        receive access.
-                      </p>
-                      {mode === "demo" ? (
-                        <p>
-                          Sign in to invite existing ILLAM users as editors or
-                          viewers.
-                        </p>
-                      ) : (
-                        <>
-                          {members.map((m) => (
-                            <div className="member-row" key={m.id}>
-                              <span>
-                                {m.email}
-                                <small>{m.role}</small>
-                              </span>
-                              {active?.role === "owner" && (
-                                <button
-                                  className="icon-button"
-                                  aria-label={"Remove access for " + m.email}
-                                  onClick={() =>
-                                    run(async () => {
-                                      await api("members", "DELETE", {
-                                        projectId: active.id,
-                                        userId: m.id,
-                                      });
-                                      await loadCloud(active.id);
-                                    })
-                                  }
-                                >
-                                  <X size={16} />
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                          {active?.role === "owner" && (
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                const data = new FormData(e.currentTarget);
-                                run(async () => {
-                                  await api("members", "POST", {
-                                    projectId: active.id,
-                                    email: String(data.get("email")),
-                                    role: String(data.get("role")),
-                                  });
-                                  await loadCloud(active.id);
-                                  setNotice("Project access updated.");
-                                });
-                              }}
-                            >
-                              <label>
-                                Email
-                                <input
-                                  name="email"
-                                  type="email"
-                                  required
-                                  placeholder="They must sign up first"
-                                />
-                              </label>
-                              <label>
-                                Access
-                                <select name="role">
-                                  <option value="viewer">
-                                    Viewer — read only
-                                  </option>
-                                  <option value="editor">
-                                    Editor — edit and approve
-                                  </option>
-                                </select>
-                              </label>
-                              <button disabled={busy} className="button">
-                                Grant access
-                              </button>
-                            </form>
-                          )}
-                        </>
-                      )}
-                    </section>
+                    {accessPanel()}
                   </div>
                 </div>
               )}
@@ -2018,6 +2156,129 @@ export default function Illam() {
           {notice}
         </div>
       )}
+      {payRow && (
+        <Modal
+          title={
+            payRow.requestType === "Reimbursement"
+              ? "Record reimbursement paid"
+              : "Record payment made"
+          }
+          close={() => setPayRow(null)}
+        >
+          <p>
+            {payRow.title} · {fmt(Number(payRow.amount))}
+          </p>
+          <p className="field-hint">
+            Use this after you have paid. This records one expense; it does not
+            send money.
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const values = new FormData(e.currentTarget);
+              run(async () => {
+                const next = settlePayment(project, payRow.id);
+                const paidDate = String(values.get("paidDate"));
+                const reference = String(values.get("reference") || "");
+                next.transactions = next.transactions.map((t) =>
+                  t.paymentId === payRow.id
+                    ? {
+                        ...t,
+                        from: String(values.get("account")),
+                        date: paidDate,
+                        note:
+                          String(t.note) +
+                          (reference ? " · Reference: " + reference : ""),
+                      }
+                    : t,
+                );
+                next.payments = next.payments.map((p) =>
+                  p.id === payRow.id
+                    ? { ...p, paidDate, paymentReference: reference }
+                    : p,
+                );
+                await save(next);
+                setPayRow(null);
+              });
+            }}
+          >
+            <label>
+              Paid from
+              <input
+                name="account"
+                required
+                defaultValue={payRow.account || "House fund"}
+                list="settlement-accounts"
+              />
+            </label>
+            <datalist id="settlement-accounts">
+              {Object.keys(accountBalances(project)).map((a) => (
+                <option key={a}>{a}</option>
+              ))}
+            </datalist>
+            <label>
+              Payment date
+              <input
+                name="paidDate"
+                type="date"
+                required
+                max={day()}
+                defaultValue={day()}
+              />
+            </label>
+            <label>
+              Payment reference (optional)
+              <input
+                name="reference"
+                maxLength={200}
+                placeholder="UPI / bank reference or cash receipt"
+              />
+            </label>
+            {error && (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            )}
+            <button className="button primary full" disabled={busy}>
+              Confirm paid · {fmt(Number(payRow.amount))}
+            </button>
+          </form>
+        </Modal>
+      )}
+      {reviewRow && (
+        <Modal title="Decline this request" close={() => setReviewRow(null)}>
+          <p>
+            {reviewRow.title} · {fmt(Number(reviewRow.amount))}
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const note = String(
+                new FormData(e.currentTarget).get("reviewNote"),
+              );
+              run(async () => {
+                await save({
+                  ...project,
+                  payments: project.payments.map((r) =>
+                    r.id === reviewRow.id
+                      ? { ...r, status: "Rejected", reviewNote: note }
+                      : r,
+                  ),
+                });
+                setReviewRow(null);
+              });
+            }}
+          >
+            <label>
+              Reason / what needs to change
+              <textarea name="reviewNote" required maxLength={1000} />
+            </label>
+            <button className="button destructive" disabled={busy}>
+              Decline request
+            </button>
+          </form>
+        </Modal>
+      )}
       {importOpen && (
         <Modal
           title="Read a bill or statement"
@@ -2085,6 +2346,18 @@ export default function Illam() {
                     />
                   ))}
                 </>
+              )}
+              {modal.section === "payments" && (
+                <label>
+                  Request type
+                  <select
+                    name="requestType"
+                    defaultValue={modal.row?.requestType || "Payment"}
+                  >
+                    <option>Payment</option>
+                    <option>Reimbursement</option>
+                  </select>
+                </label>
               )}
               {modal.section !== "stages" && (
                 <StageSelect

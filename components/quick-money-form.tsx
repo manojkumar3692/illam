@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { quickItems } from "@/lib/quick-items";
 import { day, type Row } from "@/lib/model";
 export default function QuickMoneyForm({
   row,
@@ -12,6 +13,7 @@ export default function QuickMoneyForm({
   currency: string;
   accounts: string[];
 }) {
+  const [quickChoice, setQuickChoice] = useState("");
   const [kind, setKind] = useState(
     String(row?.kind || defaults?.kind || "Expense"),
   );
@@ -32,6 +34,36 @@ export default function QuickMoneyForm({
         ))}
       </div>
       <input type="hidden" name="kind" value={kind} />
+      {kind === "Expense" && !row && (
+        <div className="quick-presets" aria-label="Common site costs">
+          {quickItems.map((item) => (
+            <button
+              type="button"
+              key={item.title}
+              onClick={(e) => {
+                const form = e.currentTarget.form;
+                if (!form) return;
+                const category = form.elements.namedItem(
+                  "category",
+                ) as HTMLSelectElement;
+                const note = form.elements.namedItem(
+                  "note",
+                ) as HTMLTextAreaElement;
+                if (category) category.value = item.category;
+                if (note) note.value = item.title;
+                setQuickChoice(item.title);
+              }}
+            >
+              {item.title}
+            </button>
+          ))}
+        </div>
+      )}
+      {quickChoice && kind === "Expense" && (
+        <p className="field-hint">
+          Selected: {quickChoice}. Enter the amount and who you paid.
+        </p>
+      )}
       <label className="amount-input">
         Amount <span>{currency}</span>
         <input

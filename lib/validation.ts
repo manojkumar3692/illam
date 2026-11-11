@@ -20,8 +20,31 @@ export const projectSchema = z
     decisions: z.array(row).max(5000),
     documents: z.array(row).max(5000),
     cameras: z.array(row).max(50),
+    attendance: z.array(row).max(10000).default([]),
   })
   .superRefine((p, ctx) => {
+    const visits = new Set<string>();
+    for (const a of p.attendance) {
+      const key = String(a.userId) + ":" + String(a.date);
+      if (
+        !a.userId ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(String(a.date)) ||
+        !["On site", "Remote work", "Half day", "Absent"].includes(
+          String(a.status),
+        ) ||
+        visits.has(key)
+      )
+        ctx.addIssue({
+          code: "custom",
+          message: "Attendance needs one valid record per person and day.",
+        });
+      visits.add(key);
+      if (a.stageId && !p.stages.some((s) => s.id === a.stageId))
+        ctx.addIssue({
+          code: "custom",
+          message: "Choose an existing attendance stage.",
+        });
+    }
     for (const section of [
       "transactions",
       "payments",

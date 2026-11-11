@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       throw new HttpError(400, "The file contents do not match its type.");
     const q = sql();
     const [out] =
-      await q`insert into illam_files(project_id,name,mime,data,size) values(${id},${file.name.slice(0, 200)},${file.type},${bytes.toString("base64")},${file.size}) returning id`;
+      await q`insert into illam_files(project_id,name,mime,data,size,uploader_id) values(${id},${file.name.slice(0, 200)},${file.type},${bytes.toString("base64")},${file.size},${user.id}) returning id`;
     return Response.json(out, { status: 201 });
   } catch (e) {
     return failure(e);

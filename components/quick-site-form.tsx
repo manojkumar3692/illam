@@ -24,11 +24,24 @@ export default function QuickSiteForm({
           name="note"
           required
           defaultValue={row?.note}
-          placeholder="A few lines for everyone following the build…"
+          placeholder="Work completed, blockers or a note for the owner…"
           rows={4}
           maxLength={3000}
         />
       </label>
+      <label className="review-checkbox">
+        <input
+          type="checkbox"
+          name="shared"
+          value="yes"
+          defaultChecked={row?.shared === "yes"}
+        />{" "}
+        Share this note and attachment with everyone in the home
+      </label>
+      <small>
+        Leave unchecked for owner-and-author access. Shared notes should not
+        contain private financial details.
+      </small>
       <details className="entry-extra">
         <summary>Date, team & photo link</summary>
         <label>

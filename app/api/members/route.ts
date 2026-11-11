@@ -13,10 +13,10 @@ export async function GET(req: Request) {
   try {
     const user = await requireUser(),
       id = uuid(new URL(req.url).searchParams.get("projectId"));
-    await permission(id, user.id);
+    await permission(id, user.id, false, true);
     const q = sql();
     const members =
-      await q`select user_id as id,email,role from illam_members where project_id=${id}`;
+      await q`select user_id as id,email,coalesce(access_role, case when role='editor' then 'contractor' else 'family' end) as role from illam_members where project_id=${id}`;
     return Response.json(
       { members },
       { headers: { "Cache-Control": "no-store" } },
@@ -32,7 +32,9 @@ export async function POST(req: Request) {
       body = await req.json(),
       id = uuid(body.projectId),
       email = z.string().email().parse(body.email).trim().toLowerCase(),
-      role = z.enum(["editor", "viewer"]).parse(body.role);
+      role = z
+        .enum(["contractor", "architect", "family", "friend"])
+        .parse(body.role);
     await permission(id, user.id, false, true);
     const q = sql();
     const [target] =
@@ -44,7 +46,7 @@ export async function POST(req: Request) {
       );
     if (target.id === user.id)
       throw new HttpError(400, "You already own this home.");
-    await q`insert into illam_members(project_id,user_id,email,role) values(${id},${target.id},${email},${role}) on conflict(project_id,user_id) do update set role=excluded.role`;
+    await q`insert into illam_members(project_id,user_id,email,role,access_role) values(${id},${target.id},${email},'viewer',${role}) on conflict(project_id,user_id) do update set role='viewer',access_role=excluded.access_role`;
     return Response.json({ ok: true });
   } catch (e) {
     return failure(e);

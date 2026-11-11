@@ -95,6 +95,7 @@ export const fields: Record<Section, Field[]> = {
       "Supervisor",
       "Supplier",
       "Family",
+      "Friend",
       "Other",
     ]),
     f("company", "Company", "text", false),

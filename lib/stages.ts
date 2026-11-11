@@ -39,9 +39,12 @@ export function stageSummary(project: Project, id: string) {
   return { spent, funds, due, budget };
 }
 export function stageLinkCount(project: Project, id: string) {
-  return linkedSections.reduce(
-    (n, s) => n + project[s].filter((r) => r.stageId === id).length,
-    0,
+  return (
+    (project.attendance || []).filter((r) => r.stageId === id).length +
+    linkedSections.reduce(
+      (n, s) => n + project[s].filter((r) => r.stageId === id).length,
+      0,
+    )
   );
 }
 export function removeStage(project: Project, id: string): Project {
@@ -54,5 +57,8 @@ export function removeStage(project: Project, id: string): Project {
     next[section] = project[section].map((r) =>
       r.stageId === id ? { ...r, stageId: "", previousStageTitle: title } : r,
     );
+  next.attendance = (project.attendance || []).map((r) =>
+    r.stageId === id ? { ...r, stageId: "", previousStageTitle: title } : r,
+  );
   return next;
 }

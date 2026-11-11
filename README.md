@@ -32,7 +32,7 @@ npm run build
 - Site diary: dates, crew counts, notes and private attachments or external photo links.
 - Decisions: context, owner, deadline, estimated cost impact and approval.
 - Contacts and responsibilities; version-labelled documents; secure camera portal bookmarks.
-- Multiple homes; owner-managed editor/viewer access; existing verified users can be added by email.
+- Multiple homes; owner-managed contractor/architect/family/friend access; existing verified users can be added by email.
 - Signup verification codes, sign-in, sign-out, password reset with email OTP.
 - Private PDF/JPG/PNG/WebP attachments up to 3 MB; project JSON and ledger CSV exports.
 
@@ -65,7 +65,7 @@ npx vercel --prod
 
 ## Access and storage
 
-Every private API checks the managed auth session, verified email and project membership. Viewers cannot write. Only owners manage sharing. SQL queries are parameterized and mutation requests require same-origin headers. Browser code never receives a database password.
+Every private API checks the managed auth session, verified email and project membership. Only owners can read the full ledger or mutate the project document. Team reads use an explicit allowlist; contractors and architects can submit only scoped actions. Only owners manage sharing. SQL queries are parameterized and mutation requests require same-origin headers. Browser code never receives a database password.
 
 Postgres tables have RLS enabled and public permissions revoked. The server's owner connection enforces project authorization in application queries; do not enable a public database Data API against this schema. Whole-project writes use an expected revision and an atomic update to reject stale edits. Users must refresh to see collaborator changes; live multi-user subscriptions are not implemented.
 
@@ -75,7 +75,7 @@ Files are private and served through authenticated API routes as downloads. For 
 
 This is a functional first version for a small number of home projects, not a complete construction ERP. Camera portals open externally; there is no RTSP ingestion, video recording, face recognition, automatic attendance or AI quality verification. Stock quantities are manually maintained totals. There are no bank integrations, automatic reminders, WhatsApp ingestion, quotation comparisons, billing subscriptions or native mobile apps yet.
 
-Before commercial launch: run full multi-user integration tests, use a dedicated email provider, add abuse/storage quotas and monitoring, move attachments to object storage, add full immutable financial events and correction workflows, import/restore, backup recovery tests, and granular contractor/engineer permissions. Editors can approve payments; use viewer access for anyone who must not approve.
+Before commercial launch: run full multi-user integration tests, use a dedicated email provider, add abuse/storage quotas and monitoring, move attachments to object storage, add full immutable financial events and correction workflows, import/restore, backup recovery tests, and broader device/multi-account acceptance testing. Only owners approve payments; family and friends receive shared progress access.
 
 ## Verification
 
@@ -110,3 +110,26 @@ Site → Stages supports named stages, optional owner/target date/budget, progre
 All record forms and import-review entries support a stage or Whole project. Links use stable stage IDs, so renaming preserves associations. Stage filters cover the ledger and other record lists. Stage cards show spent, tagged funds and pending/approved unpaid requests; transfers are excluded from expense and funds totals. Tagged funds are not a ring-fenced account balance. Payment settlement copies the request's stage to its expense.
 
 Stage deletion requires confirmation with a linked-record count. It removes the stage's plan/budget/remaining estimate, moves linked records to Whole project, and retains the former name as metadata. Money records and overall balances are preserved. Existing untagged data stays valid. The server rejects unknown stage IDs and negative budgets.
+
+
+## Private owner finances and team workflow
+
+Apply `db/002_team_access.sql` before this release. It adds nullable `access_role` and file `uploader_id` columns without deleting existing data. Legacy editor memberships are restricted to contractor behavior and legacy viewers to family behavior. New memberships retain a legacy viewer value and use the explicit access role. No team members were automatically added during setup.
+
+| Role | Visible | Can do |
+| --- | --- | --- |
+| Owner | Full project, money, requests and attendance | Manage people/access, approve/decline, record paid, confirm attendance, share notes |
+| Contractor / architect | Stage progress, shared notes, own notes/claims/attendance | Request payment, claim reimbursement, upload own bill, check in/out, add daily note |
+| Family / friend | Stage progress and explicitly shared notes/attachments | View only |
+
+People is the contact book. **Home → People & access** includes owner-only membership controls directly on the People screen. Each teammate first creates and verifies their own ILLAM account; the owner grants access using that email. This does not send invitation emails. Re-submit an email with a different role to change access. Removing access is enforced on subsequent API requests. Previously downloaded content cannot be recalled.
+
+The server redacts balances, ledger, budgets, stage estimates/notes, contacts, private files and others' claims before responding to non-owners. Generic project writes and membership listing/changes are owner-only. File access checks project membership and record visibility or the worker's own upload. Unpublished legacy notes remain private. Shared stage titles and explicitly published notes should not contain private financial details.
+
+Requests follow Pending → Approved/Rejected → Paid. Reimbursement requests require a past/today spending date. All submissions get authenticated author IDs and timestamps on the server. Team clients cannot set approval or authorship. Declines require a reason. Owner payment confirmation records account, date and optional reference; it atomically marks the approved request paid and creates one expense. Original submitted claim details and settled expenses are protected from editing/deletion; stage reassignment remains possible. A rejected claim can be re-submitted as a new corrected request. No bank transfer, partial payment, payroll or automatic bill verification is performed. Owner edits and team actions produce revision audit events; this is not an immutable accounting journal or external verification of payment.
+
+Attendance is one record per person per India site-calendar day. Workers self-report on-site/remote attendance and check out; owner confirms or records/corrects entries for a member/contact. Missing entries are not automatically absence. No GPS, face recognition or wage calculation. Daily notes are private to author and owner unless the owner explicitly shares them. Owner-made notes have an explicit sharing checkbox. Contractor/architect notes can be shared by the owner using the note card action.
+
+Home now includes stage setup, People & access and Attendance & daily notes shortcuts. Expense and claim forms include Temporary shed, EB/electricity connection, water load and other common categories. The isometric house graphic changes with the average recorded stage progress; it is illustrative, not a reconstruction of actual drawings or measured construction completion.
+
+Verification includes role-redaction tests, attachment authorization, authenticated claim attribution, scoped attendance, review/paid invariants, and actual route-handler tests with isolated auth/database mocks. Browser checks use synthetic local data and a temporary role-preview route removed before deployment. Real invited-account acceptance remains a useful next check when the owner adds the first teammate.
