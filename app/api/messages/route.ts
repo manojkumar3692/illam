@@ -31,7 +31,7 @@ export async function GET(req: Request) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {
-    return failure(e);
+    return failure(e, "/api/messages");
   }
 }
 export async function POST(req: Request) {
@@ -59,6 +59,6 @@ export async function POST(req: Request) {
       );
     return Response.json({ id: rows[0].id }, { status: 201 });
   } catch (e) {
-    return failure(e);
+    return failure(e, "/api/messages");
   }
 }

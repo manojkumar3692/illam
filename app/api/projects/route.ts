@@ -28,7 +28,7 @@ export async function GET() {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {
-    return failure(e);
+    return failure(e, "/api/projects");
   }
 }
 export async function POST(req: Request) {
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       await q`insert into illam_projects(owner_id,name,data) values(${user.id},${data.name},${JSON.stringify(data)}::jsonb) returning id`;
     return Response.json(p, { status: 201 });
   } catch (e) {
-    return failure(e);
+    return failure(e, "/api/projects");
   }
 }
 export async function PUT(req: Request) {
@@ -104,6 +104,6 @@ export async function PUT(req: Request) {
       );
     return Response.json({ ...rows[0], data });
   } catch (e) {
-    return failure(e);
+    return failure(e, "/api/projects");
   }
 }

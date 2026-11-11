@@ -2988,3 +2988,153 @@ summary::-webkit-details-marker {
 .onboarding-join .text-link {
   margin-top: 22px;
 }
+
+.admin-login > svg {
+  display: block;
+  margin-top: 40px;
+}
+.admin-login > .text-link {
+  margin-top: 24px;
+}
+.admin-shell {
+  max-width: 1280px;
+  margin: auto;
+  padding: 0 24px 60px;
+}
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #dce0d6;
+  padding: 20px 0;
+}
+.admin-header strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+}
+.admin-shell main {
+  padding-top: 30px;
+}
+.admin-shell h1 {
+  font-size: 34px;
+  letter-spacing: -1px;
+}
+.admin-shell p {
+  line-height: 1.6;
+}
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin: 26px 0;
+}
+.admin-stats article {
+  padding: 20px;
+  border: 1px solid #dce0d6;
+  border-radius: 12px;
+  background: white;
+}
+.admin-stats strong {
+  display: block;
+  font-size: 30px;
+}
+.admin-stats span {
+  font-size: 13px;
+  color: #61705e;
+}
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+.admin-tabs [aria-pressed="true"] {
+  background: #253c2b;
+  color: white;
+}
+.admin-search {
+  width: 100%;
+  padding: 15px;
+  border: 1px solid #cdd2c5;
+  border-radius: 10px;
+  background: white;
+  font-size: 16px;
+}
+.admin-table-wrap {
+  overflow: auto;
+  margin-top: 18px;
+  border: 1px solid #dce0d6;
+  border-radius: 10px;
+}
+.admin-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+  background: white;
+}
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 13px;
+  vertical-align: top;
+  border-bottom: 1px solid #e7e9e2;
+  min-width: 110px;
+  max-width: 400px;
+  overflow-wrap: anywhere;
+}
+.admin-table th {
+  background: #e9eee4;
+  text-transform: capitalize;
+}
+.admin-projects {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 22px;
+}
+.admin-projects article {
+  background: white;
+  border: 1px solid #dce0d6;
+  border-radius: 12px;
+  padding: 22px;
+}
+.admin-projects button {
+  display: block;
+  margin-top: 18px;
+}
+.admin-record-section {
+  margin: 15px 0;
+  background: white;
+  border: 1px solid #dce0d6;
+  border-radius: 10px;
+  padding: 18px;
+}
+.admin-record-section summary {
+  cursor: pointer;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.admin-detail h2 {
+  margin-top: 24px;
+}
+@media (max-width: 650px) {
+  .admin-shell {
+    padding: 0 16px 40px;
+  }
+  .admin-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+  .admin-projects {
+    grid-template-columns: 1fr;
+  }
+  .admin-shell h1 {
+    font-size: 28px;
+  }
+  .admin-header .button {
+    padding: 9px;
+    font-size: 12px;
+  }
+}

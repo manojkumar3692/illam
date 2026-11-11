@@ -22,7 +22,7 @@ export async function GET(req: Request) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {
-    return failure(e);
+    return failure(e, "/api/members");
   }
 }
 export async function POST(req: Request) {
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     await q`insert into illam_members(project_id,user_id,email,role,access_role) values(${id},${target.id},${email},'viewer',${role}) on conflict(project_id,user_id) do update set role='viewer',access_role=excluded.access_role`;
     return Response.json({ ok: true });
   } catch (e) {
-    return failure(e);
+    return failure(e, "/api/members");
   }
 }
 export async function DELETE(req: Request) {
@@ -64,6 +64,6 @@ export async function DELETE(req: Request) {
     await q`delete from illam_members where project_id=${id} and user_id=${target}`;
     return Response.json({ ok: true });
   } catch (e) {
-    return failure(e);
+    return failure(e, "/api/members");
   }
 }

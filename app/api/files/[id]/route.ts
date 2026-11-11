@@ -34,6 +34,6 @@ export async function GET(
       },
     });
   } catch (e) {
-    return failure(e);
+    return failure(e, "/api/files/:id");
   }
 }

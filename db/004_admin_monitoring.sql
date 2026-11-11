@@ -1,0 +1,11 @@
+create table if not exists illam_admin_sessions (token_hash text primary key, credential_version text not null, expires_at timestamptz not null, created_at timestamptz not null default now());
+create table if not exists illam_admin_login_limits (bucket bigint primary key, attempts integer not null);
+create table if not exists illam_admin_audit (id bigint generated always as identity primary key, action text not null, target_id text, created_at timestamptz not null default now());
+create table if not exists illam_events (id uuid primary key, source text not null, code text not null, route text not null, status integer, user_id text, created_at timestamptz not null default now());
+create index if not exists illam_events_recent on illam_events(created_at desc);
+create index if not exists illam_events_user on illam_events(user_id,created_at desc);
+alter table illam_admin_sessions enable row level security;
+alter table illam_admin_login_limits enable row level security;
+alter table illam_admin_audit enable row level security;
+alter table illam_events enable row level security;
+revoke all on illam_admin_sessions,illam_admin_login_limits,illam_admin_audit,illam_events from public;

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { AppRegistration } from "@/components/app-install";
 import "./globals.css";
+import ErrorMonitor from "@/components/error-monitor";
 export const metadata: Metadata = {
   title: "ILLAM — My home build",
   description: "Track your construction money, payments and daily site work.",
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AppRegistration />
+        <ErrorMonitor />
         {children}
       </body>
     </html>

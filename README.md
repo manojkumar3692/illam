@@ -149,3 +149,13 @@ git add <changed-files>
 git commit -m "Describe the change"
 git push origin main
 ```
+
+## Private platform administration and monitoring
+
+`/admin` uses a separate login for `admin@illam.com`. Regular Neon-authenticated users, including project owners, do not gain platform access. Configure `ILLAM_ADMIN_PASSWORD_HASH` in the server-only production environment as `salt:scryptHex` (16 random salt bytes as hex; scrypt output 64 bytes). Never put the plaintext password or hash in source control. The admin credential is independent of Neon user accounts; rotate the hash to invalidate existing admin sessions.
+
+Apply `db/004_admin_monitoring.sql` before deploying. Admin sessions use random 32-byte tokens, only their SHA-256 hashes are stored, and expire after four hours. Cookies are HttpOnly, Secure in production and SameSite Strict. Sign-in is limited to ten attempts per 15-minute bucket across the admin endpoint. All private admin APIs recheck the session in the database; reads and downloads are audited. The dashboard is read-only but includes all households' project records, messages and attachments, so access is highly privileged. Passwords, Neon session tokens and database credentials are never returned.
+
+Monitoring captures unexpected API failures, failed auth requests, and signed-in browser exceptions/network failures. Only fixed event codes, normalized routes, HTTP statuses, timestamps and an authenticated user ID (when available) are stored. No raw error messages, stack traces, request bodies, query strings or secrets are recorded. Browser reports are untrusted diagnostic signals. Collection is capped at 30 events per minute per user (or anonymous server bucket), 10,000 daily overall, and ten browser reports per page lifecycle. Database logging failure falls back to structured runtime logs. Events start at this release; historical errors cannot be reconstructed. Records currently remain until an explicit maintenance cleanup; the UI shows only the latest bounded results.
+
+The admin test button creates a clearly labelled `MONITOR_TEST` event. It does not trigger a real application failure. Dashboard totals describe the loaded rows (up to 500 users/projects, 200 events/activity entries and 100 admin audit entries); messages and attachments are limited to the latest 1,000 per project. Timestamps render in the administrator's device timezone.

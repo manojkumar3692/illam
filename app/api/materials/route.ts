@@ -60,6 +60,6 @@ export async function POST(req: Request) {
       );
     return Response.json(rows[0]);
   } catch (e) {
-    return failure(e);
+    return failure(e, "/api/materials");
   }
 }
